@@ -53,7 +53,7 @@ Ejecutar este proyecto en tu entorno local no te tomará más de dos minutos. Ne
     Visita `http://localhost:5173/` en tu navegador.
 
 ## 🤝 Créditos y Fuentes
-Datos recopilados, curados y actualizados provenientes de la institución abierta: **Centro Nacional de Información / SESNSP - Secretaría de Seguridad y Protección Ciudadana**.
+Datos recopilados, curados y actualizados provenientes de la institución abierta: **Secretariado Ejecutivo del Sistema Nacional de Seguridad Pública**.
 
 ---
 *Este proyecto de ingeniería de datos y desarrollo front-end es para fines demostrativos y de concientización pública.*
