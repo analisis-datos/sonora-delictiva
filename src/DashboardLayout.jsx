@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { LayoutDashboard, MapPin, Users, Settings2, ShieldAlert, BadgeInfo, Download, Info } from 'lucide-react';
 import Papa from 'papaparse';
 import PlotlyComponent from 'react-plotly.js';
+import TabMunicipal from './components/TabMunicipal';
 const Plot = PlotlyComponent.default || PlotlyComponent;
 
 // ---- Constants and Helpers ----
@@ -217,18 +218,15 @@ export default function DashboardLayout({ data }) {
     });
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <Card title="Top 15 Municipios">
-             <div className="w-full h-[400px]">
-               <Plot
-                data={[{ x: porMun15.map(r => r.Valor), y: porMun15.map(r => r.Municipio), type: 'bar', orientation: 'h', marker: { color: '#ff6b6b' } }]}
-                layout={{ ...LAYOUT_BASE, autosize: true, margin: { l: 120, r: 20, t: 10, b: 40 }, yaxis: { ...LAYOUT_BASE.yaxis, type: 'category' } }}
-                config={PLOTLY_CONFIG}
-                style={{ width: '100%', height: '100%' }}
-                useResizeHandler
-               />
-             </div>
-          </Card>
+      <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <TabMunicipal 
+          dataMunicipal={municipal}
+          filtAnno={filtAnno}
+          filtDelito={filtDelito}
+          filtMunicipio={filtMunicipio}
+          setFiltMunicipio={setFiltMunicipio}
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-[var(--color-dash-border)] border-dashed">
           <Card title="Evolución Top 5">
              <div className="w-full h-[400px]">
                <Plot
@@ -240,7 +238,19 @@ export default function DashboardLayout({ data }) {
                />
              </div>
           </Card>
+          <Card title="Top 15 Municipios">
+             <div className="w-full h-[400px]">
+               <Plot
+                data={[{ x: porMun15.map(r => r.Valor), y: porMun15.map(r => r.Municipio), type: 'bar', orientation: 'h', marker: { color: '#ff6b6b' } }]}
+                layout={{ ...LAYOUT_BASE, autosize: true, margin: { l: 120, r: 20, t: 10, b: 40 }, yaxis: { ...LAYOUT_BASE.yaxis, type: 'category' } }}
+                config={PLOTLY_CONFIG}
+                style={{ width: '100%', height: '100%' }}
+                useResizeHandler
+               />
+             </div>
+          </Card>
         </div>
+      </div>
     );
   };
 
@@ -306,6 +316,18 @@ export default function DashboardLayout({ data }) {
     return (
       <div className="flex flex-col gap-6 animate-in fade-in zoom-in duration-500">
         
+        {/* ── Mapa Interactivo Víctimas ── */}
+        <TabMunicipal 
+          dataMunicipal={victimas}
+          filtAnno={filtAnno}
+          filtDelito={filtDelito}
+          filtMunicipio={filtMunicipio}
+          setFiltMunicipio={setFiltMunicipio}
+          tipoUnidad="Víctimas"
+        />
+        
+        <hr className="border-gray-800 my-2" />
+
         {/* Fila 1: Tendencias Generales de Víctimas */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card title="Evolución total de Víctimas" colSpan>
