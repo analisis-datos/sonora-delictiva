@@ -69,9 +69,9 @@ const KpiBox = ({ label, value, sub, color }) => (
   </div>
 );
 
-const Badge = ({ text }) => (
-  <span className="px-3 py-1 bg-gray-800 border border-gray-700 rounded-full text-gray-400 flex items-center gap-1.5 shadow-inner text-xs font-mono">
-    <BadgeInfo size={14} className="text-gray-500" />
+const Badge = ({ text, icon, color = 'text-gray-400', bg = 'bg-gray-800', border = 'border-gray-700' }) => (
+  <span className={`px-3 py-1.5 ${bg} border ${border} rounded-full ${color} flex items-center gap-1.5 shadow-inner text-xs font-mono whitespace-nowrap`}>
+    {icon && <span className="opacity-70">{icon}</span>}
     {text}
   </span>
 );
@@ -95,6 +95,15 @@ export default function DashboardLayout({ data }) {
   const periodoText = meta.periodo_inicio && meta.periodo_fin
     ? `${meta.periodo_inicio.slice(0, 7)} → ${meta.periodo_fin.slice(0, 7)}`
     : 'Sin datos';
+
+  // Fecha/hora de última actualización formateada
+  const actualizadoText = useMemo(() => {
+    if (!meta.generado_en) return 'Sin fecha';
+    const d = new Date(meta.generado_en);
+    const fecha = d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+    const hora  = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    return `${fecha} ${hora}`;
+  }, [meta.generado_en]);
 
   // Datasets filtrados
   const df = useMemo(() => {
@@ -213,9 +222,28 @@ export default function DashboardLayout({ data }) {
               </p>
             </div>
           </div>
-          <div className="flex gap-3 text-xs font-mono">
-            <Badge text="Abierto" />
-            <Badge text={periodoText} />
+          <div className="flex flex-wrap gap-2">
+            <Badge
+              text={periodoText}
+              icon="📅"
+              color="text-blue-300"
+              bg="bg-blue-900/30"
+              border="border-blue-700/50"
+            />
+            <Badge
+              text={`Actualizado: ${actualizadoText}`}
+              icon="🔄"
+              color="text-emerald-300"
+              bg="bg-emerald-900/20"
+              border="border-emerald-700/40"
+            />
+            <Badge
+              text="v2.0"
+              icon="✨"
+              color="text-violet-300"
+              bg="bg-violet-900/20"
+              border="border-violet-700/40"
+            />
           </div>
         </div>
       </header>
