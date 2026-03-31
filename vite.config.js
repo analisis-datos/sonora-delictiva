@@ -7,16 +7,17 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   base: './',
   build: {
-    chunkSizeWarningLimit: 1500,
+    chunkSizeWarningLimit: 4000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'plotly': ['plotly.js', 'react-plotly.js'],
-          'd3': ['d3'],
-          'vendor': ['react', 'react-dom', 'papaparse', 'lucide-react'],
+        manualChunks(id) {
+          if (id.includes('plotly') || id.includes('react-plotly')) return 'plotly';
+          if (id.includes('node_modules/d3')) return 'd3';
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) return 'vendor';
         }
       }
     }
   }
 })
+
 
