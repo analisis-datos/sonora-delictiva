@@ -37,10 +37,12 @@ export default function MapaChoropleth({
   delito = null,
   onMunSelect,
   selectedMun = null,
-  tipoUnidad = "carpetas"
+  tipoUnidad = "carpetas",
+  valoresExternos = null,   // { Municipio: valor } — si se pasa, se usa en lugar del cómputo interno
 }) {
   const svgRef   = useRef(null);
   const wrapRef  = useRef(null);
+  const zoomRef  = useRef(null);  // referencia al zoom D3 activo
   const [tooltip, setTooltip] = useState(null);   // { x, y, municipio, valor }
   const [geoJson, setGeoJson]   = useState(null);
   const [loading, setLoading]   = useState(true);
@@ -65,8 +67,9 @@ export default function MapaChoropleth({
       });
   }, []);
 
-  // ── Agregar datos por municipio ───────────────────────────────────────────
+  // ── Agregar datos por municipio (o usar valores externos) ────────────────
   const totalesPorMun = useMemo(() => {
+    if (valoresExternos) return valoresExternos;  // modo tasa: usar hook externo
     let fil = [...data];
     if (año)   fil = fil.filter((r) => String(r["Año"]) === String(año));
     if (delito) fil = fil.filter((r) => r["Subtipo de delito"] === delito);
@@ -76,7 +79,7 @@ export default function MapaChoropleth({
       if (mun) mapa[mun] = (mapa[mun] || 0) + (Number(r["Valor"]) || 0);
     });
     return mapa;
-  }, [data, año, delito]);
+  }, [data, año, delito, valoresExternos]);
 
   // ── Escala de color ───────────────────────────────────────────────────────
   const escalaColor = useMemo(() => {
@@ -159,8 +162,14 @@ export default function MapaChoropleth({
       .scaleExtent([1, 8])
       .on("zoom", (e) => g.attr("transform", e.transform));
     svg.call(zoom);
+    zoomRef.current = zoom;  // guardar referencia para los botones
 
   }, [geoJson, totalesPorMun, escalaColor, selectedMun, onMunSelect]);
+
+  // ── Helpers de zoom ───────────────────────────────────────────────
+  const zoomIn  = () => { if (!zoomRef.current) return; d3.select(svgRef.current).transition().duration(300).call(zoomRef.current.scaleBy, 1.5); };
+  const zoomOut = () => { if (!zoomRef.current) return; d3.select(svgRef.current).transition().duration(300).call(zoomRef.current.scaleBy, 0.67); };
+  const zoomReset = () => { if (!zoomRef.current) return; d3.select(svgRef.current).transition().duration(300).call(zoomRef.current.transform, d3.zoomIdentity); };
 
   // ── Leyenda de color ──────────────────────────────────────────────────────
   const LeyendaColor = () => {
@@ -247,26 +256,23 @@ export default function MapaChoropleth({
 
       {/* Controles de zoom */}
       <div className="absolute top-3 right-3 z-10 flex flex-col gap-1">
-        {["＋", "－", "⌂"].map((label, i) => (
+        {[
+          { label: "＋", action: zoomIn,    title: "Zoom +" },
+          { label: "－", action: zoomOut,   title: "Zoom -" },
+          { label: "⌂",  action: zoomReset, title: "Resetear" },
+        ].map((btn) => (
           <button
-            key={i}
-            onClick={() => {
-              const svg = d3.select(svgRef.current);
-              const zoom = d3.zoom().scaleExtent([1, 8]);
-              if (i === 0) svg.transition().call(zoom.scaleBy, 1.5);
-              else if (i === 1) svg.transition().call(zoom.scaleBy, 0.67);
-              else svg.transition().call(zoom.transform, d3.zoomIdentity);
-            }}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold
-                       transition-colors"
+            key={btn.title}
+            onClick={btn.action}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold transition-colors"
             style={{
               background: "#1a1d27",
               border: "1px solid #2e3250",
               color: "#8892b0",
             }}
-            title={["Zoom ＋", "Zoom －", "Resetear"][i]}
+            title={btn.title}
           >
-            {label}
+            {btn.label}
           </button>
         ))}
       </div>

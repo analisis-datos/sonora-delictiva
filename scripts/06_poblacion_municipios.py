@@ -1,0 +1,114 @@
+"""
+06_poblacion_municipios.py
+==========================
+Genera public/data/sonora_poblacion.csv con la población de cada municipio
+de Sonora según el Censo de Población y Vivienda 2020 (INEGI).
+
+Fuente: https://www.inegi.org.mx/programas/ccpv/2020/
+"""
+
+import os
+import json
+import pandas as pd
+
+OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "public", "data")
+
+# ── Población municipal 2020 (INEGI — Censo 2020) ─────────────────────────────
+# Fuente: https://www.inegi.org.mx/app/areasgeograficas/?ag=26
+POBLACION_2020 = {
+    "Aconchi": 2647,
+    "Agua Prieta": 103540,
+    "Alamos": 28665,
+    "Altar": 11219,
+    "Arivechi": 1439,
+    "Arizpe": 4019,
+    "Atil": 1289,
+    "Bacadéhuachi": 1325,
+    "Bacanora": 1326,
+    "Bacerac": 1543,
+    "Bacoachi": 2078,
+    "Bácum": 23285,
+    "Báviácora": 4793,
+    "Bavispe": 2088,
+    "Benjamín Hill": 7660,
+    "Caborca": 98184,
+    "Cajeme": 481148,
+    "Cananea": 32813,
+    "Carbó": 6698,
+    "Colorada": 8344,
+    "Cucurpe": 1757,
+    "Cumpas": 7404,
+    "Divisaderos": 1667,
+    "Empalme": 60477,
+    "Etchojoa": 65854,
+    "Fronteras": 10453,
+    "Granados": 2209,
+    "Guaymas": 160763,
+    "Hermosillo": 936263,
+    "Huachinera": 1327,
+    "Huásabas": 1254,
+    "Huatabampo": 68869,
+    "Huépac": 1546,
+    "Imuris": 16376,
+    "La Colorada": 8344,
+    "Magdalena": 31695,
+    "Mazatán": 6021,
+    "Moctezuma": 8434,
+    "Naco": 7904,
+    "Nácori Chico": 2265,
+    "Nacozari de García": 13540,
+    "Navojoa": 157729,
+    "Nogales": 272806,
+    "Onavas": 570,
+    "Opodepe": 4232,
+    "Oquitoa": 673,
+    "Pitiquito": 9698,
+    "Puerto Peñasco": 64827,
+    "Quiriego": 5528,
+    "Rayón": 2408,
+    "Rosario": 7213,
+    "Sahuaripa": 7948,
+    "San Felipe de Jesús": 5291,
+    "San Ignacio Río Muerto": 20199,
+    "San Javier": 1476,
+    "San Luis Río Colorado": 207489,
+    "San Miguel de Horcasitas": 8641,
+    "San Pedro de la Cueva": 2166,
+    "Santa Ana": 19912,
+    "Santa Cruz": 2416,
+    "Sáric": 2776,
+    "Soyopa": 2079,
+    "Suaqui Grande": 2098,
+    "Tepache": 3411,
+    "Trincheras": 2932,
+    "Tubutama": 2497,
+    "Ures": 9741,
+    "Villa Hidalgo": 3291,
+    "Villa Pesqueira": 2482,
+    "Yécora": 8076,
+    "Benito Juárez": 57808,
+    "General Plutarco Elías Calles": 10093,
+}
+
+
+def main():
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    df = pd.DataFrame([
+        {"Municipio": mun, "Poblacion2020": pob}
+        for mun, pob in POBLACION_2020.items()
+    ]).sort_values("Municipio")
+
+    salida = os.path.join(OUTPUT_DIR, "sonora_poblacion.csv")
+    df.to_csv(salida, index=False, encoding="utf-8")
+
+    print("=" * 60)
+    print("  Población Municipal de Sonora — INEGI Censo 2020")
+    print("=" * 60)
+    print(f"  Municipios registrados: {len(df)}")
+    print(f"  Población total: {df['Poblacion2020'].sum():,}")
+    print(f"\n✅ Guardado: {salida}")
+
+
+if __name__ == "__main__":
+    main()

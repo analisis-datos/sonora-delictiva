@@ -27,13 +27,17 @@ const App = () => {
           });
         };
 
-        const [estatalData, municipalData, victimasData] = await Promise.all([
+        const fetchJSON = (url) => fetch(url).then(r => r.ok ? r.json() : null).catch(() => null);
+
+        const [meta, estatalData, municipalData, victimasData] = await Promise.all([
+          fetchJSON('data/meta.json'),
           fetchCSV('data/sonora_estatal.csv'),
           fetchCSV('data/sonora_municipal.csv'),
           fetchCSV('data/sonora_victimas.csv'),
         ]);
 
         setData({
+          meta: meta ?? {},
           estatal: estatalData,
           municipal: municipalData,
           victimas: victimasData

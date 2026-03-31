@@ -28,6 +28,8 @@ Fuente de datos:
 
 import os
 import glob
+import json
+import datetime
 import pandas as pd
 
 # ─── Configuración ────────────────────────────────────────────────────────────
@@ -225,6 +227,48 @@ def procesar_victimas() -> None:
     print(f"  ✓ Guardado: {salida}  ({len(df_long):,} registros)")
 
 
+def generar_meta() -> None:
+    """Genera public/data/meta.json con metadatos del periodo cubierto."""
+    print("\n[4/4] Generando meta.json...")
+    meta = {
+        "generado_en": datetime.datetime.now().isoformat(),
+        "periodo_inicio": None,
+        "periodo_fin": None,
+        "municipios": 0,
+        "total_carpetas": 0,
+        "total_victimas": 0,
+    }
+
+    est_path = os.path.join(OUTPUT_DIR, "sonora_estatal.csv")
+    mun_path = os.path.join(OUTPUT_DIR, "sonora_municipal.csv")
+    vic_path = os.path.join(OUTPUT_DIR, "sonora_victimas.csv")
+
+    if os.path.exists(est_path):
+        df_est = pd.read_csv(est_path, parse_dates=["Fecha"])
+        df_nz  = df_est[df_est["Valor"] > 0]
+        if not df_nz.empty:
+            meta["periodo_inicio"] = df_nz["Fecha"].min().strftime("%Y-%m-%d")
+            meta["periodo_fin"]    = df_nz["Fecha"].max().strftime("%Y-%m-%d")
+        meta["total_carpetas"] = int(df_est["Valor"].sum())
+
+    if os.path.exists(mun_path):
+        df_mun = pd.read_csv(mun_path)
+        meta["municipios"] = int(df_mun["Municipio"].nunique())
+
+    if os.path.exists(vic_path):
+        df_vic = pd.read_csv(vic_path)
+        meta["total_victimas"] = int(df_vic["Valor"].sum())
+
+    salida = os.path.join(OUTPUT_DIR, "meta.json")
+    with open(salida, "w", encoding="utf-8") as f:
+        json.dump(meta, f, indent=2, ensure_ascii=False)
+    print(f"  ✓ Guardado: {salida}")
+    print(f"  Periodo: {meta['periodo_inicio']} → {meta['periodo_fin']}")
+    print(f"  Carpetas totales: {meta['total_carpetas']:,}")
+    print(f"  Víctimas totales: {meta['total_victimas']:,}")
+    print(f"  Municipios únicos: {meta['municipios']}")
+
+
 if __name__ == "__main__":
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     print("=" * 60)
@@ -234,6 +278,42 @@ if __name__ == "__main__":
     procesar_estatal()
     procesar_municipal()
     procesar_victimas()
+    generar_agregados()
+    generar_meta()
 
-    print("\n✅ ¡Datos listos! Archivos en la carpeta /output")
-    print("   Ejecuta los demás scripts para generar las visualizaciones.")
+    print("\n✅ ¡Datos listos! Archivos en la carpeta /public/data/")
+    print("   Ejecuta: npm run dev")
+
+
+def generar_agregados() -> None:
+    """
+    Genera versiones pre-agregadas de los CSVs para carga inicial rápida.
+    sonora_mun_anual.csv: agrupado por Municipio + Año + Subtipo de delito.
+    Reduce ~14 MB → ~150 KB para el load inicial del dashboard.
+    """
+    print("\n[5/5] Generando agregados pre-calculados...")
+
+    mun_path = os.path.join(OUTPUT_DIR, "sonora_municipal.csv")
+    vic_path = os.path.join(OUTPUT_DIR, "sonora_victimas.csv")
+
+    if os.path.exists(mun_path):
+        df_mun = pd.read_csv(mun_path)
+        cols_group = ["Municipio", "Año", "Subtipo de delito"]
+        cols_group = [c for c in cols_group if c in df_mun.columns]
+        agg = df_mun.groupby(cols_group)["Valor"].sum().reset_index()
+        salida = os.path.join(OUTPUT_DIR, "sonora_mun_anual.csv")
+        agg.to_csv(salida, index=False, encoding="utf-8")
+        size_kb = os.path.getsize(salida) / 1024
+        orig_kb = os.path.getsize(mun_path) / 1024
+        print(f"  ✓ sonora_mun_anual.csv: {size_kb:.0f} KB (vs {orig_kb:.0f} KB original)")
+
+    if os.path.exists(vic_path):
+        df_vic = pd.read_csv(vic_path)
+        cols_group = ["Municipio", "Año", "Subtipo de delito", "Sexo", "Rango de edad"]
+        cols_group = [c for c in cols_group if c in df_vic.columns]
+        agg_vic = df_vic.groupby(cols_group)["Valor"].sum().reset_index()
+        salida_vic = os.path.join(OUTPUT_DIR, "sonora_vic_anual.csv")
+        agg_vic.to_csv(salida_vic, index=False, encoding="utf-8")
+        size_kb = os.path.getsize(salida_vic) / 1024
+        print(f"  ✓ sonora_vic_anual.csv:  {size_kb:.0f} KB")
+

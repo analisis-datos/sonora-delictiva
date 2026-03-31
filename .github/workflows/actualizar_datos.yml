@@ -1,0 +1,109 @@
+name: Actualizar Datos SESNSP y Desplegar
+
+on:
+  schedule:
+    # Día 15 de cada mes a las 08:00 UTC (el SESNSP suele publicar los días 10-15)
+    - cron: '0 8 15 * *'
+  workflow_dispatch:
+    inputs:
+      forzar_deploy:
+        description: 'Forzar deploy aunque no haya datos nuevos'
+        required: false
+        default: 'false'
+
+jobs:
+  actualizar-y-desplegar:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+
+    steps:
+      - name: Checkout repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Instalar dependencias Python
+        run: pip install pandas openpyxl requests beautifulsoup4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias Node
+        run: npm ci
+
+      # ── Intentar descarga automática de datos SESNSP ──────────────────────
+      - name: Intentar descarga de datos SESNSP
+        id: descarga
+        continue-on-error: true
+        run: |
+          python scripts/10_descargar_sesnsp.py
+          echo "descarga_ok=true" >> $GITHUB_OUTPUT
+
+      # ── Ejecutar ETL con los datos disponibles ────────────────────────────
+      - name: Ejecutar ETL
+        run: |
+          python scripts/00_preparar_datos.py
+          python scripts/05_geojson_sonora.py
+          python scripts/06_poblacion_municipios.py
+
+      # ── Verificar si hay cambios reales en los datos ──────────────────────
+      - name: Verificar cambios
+        id: cambios
+        run: |
+          if git diff --quiet public/data/; then
+            echo "hay_cambios=false" >> $GITHUB_OUTPUT
+            echo "No hay cambios en los datos"
+          else
+            echo "hay_cambios=true" >> $GITHUB_OUTPUT
+            echo "Se detectaron cambios en los datos"
+          fi
+
+      # ── Commit de datos actualizados ──────────────────────────────────────
+      - name: Commit datos actualizados
+        if: steps.cambios.outputs.hay_cambios == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/data/
+          PERIODO=$(python -c "import json; m=json.load(open('public/data/meta.json')); print(m.get('periodo_fin','?')[:7])")
+          git commit -m "data: Actualización automática SESNSP — datos hasta $PERIODO"
+          git push
+
+      # ── Build y deploy a GitHub Pages ─────────────────────────────────────
+      - name: Build
+        if: steps.cambios.outputs.hay_cambios == 'true' || github.event.inputs.forzar_deploy == 'true'
+        run: npm run build
+
+      - name: Deploy a GitHub Pages
+        if: steps.cambios.outputs.hay_cambios == 'true' || github.event.inputs.forzar_deploy == 'true'
+        run: npm run deploy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Notificación de resultado ─────────────────────────────────────────
+      - name: Resumen
+        if: always()
+        run: |
+          echo "### Resumen de actualización" >> $GITHUB_STEP_SUMMARY
+          echo "- Descarga SESNSP: ${{ steps.descarga.outcome }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Hay cambios: ${{ steps.cambios.outputs.hay_cambios }}" >> $GITHUB_STEP_SUMMARY
+          if [ -f public/data/meta.json ]; then
+            python -c "
+          import json
+          m = json.load(open('public/data/meta.json'))
+          print(f'- Periodo cubierto: {m[\"periodo_inicio\"]} → {m[\"periodo_fin\"]}')
+          print(f'- Carpetas totales: {m[\"total_carpetas\"]:,}')
+          print(f'- Víctimas totales: {m[\"total_victimas\"]:,}')
+          " >> $GITHUB_STEP_SUMMARY
+          fi
