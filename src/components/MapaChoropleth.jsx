@@ -52,7 +52,7 @@ export default function MapaChoropleth({
   useEffect(() => {
     // El GeoJSON debe estar en /public/data/sonora_municipios.geojson
     // Generado por scripts/05_geojson_sonora.py
-    fetch("/data/sonora_municipios.geojson")
+    fetch("./data/sonora_municipios.geojson")
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();

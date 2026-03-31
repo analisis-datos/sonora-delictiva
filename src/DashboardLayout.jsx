@@ -333,7 +333,7 @@ function TabTendenciasM({ dfM, munis }) {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-[var(--color-dash-border)] border-dashed">
       <Card title="Evolución Top 5">
         <div className="w-full h-[400px]">
-          <PlotlyComponent
+          <Plot
             data={traces5}
             layout={{ ...LAYOUT_BASE, autosize: true, legend: { orientation: 'h', y: -0.2 }, margin: { t:10, r:10, b:80, l:50 }, xaxis: { ...LAYOUT_BASE.xaxis, type: 'category' } }}
             config={PLOTLY_CONFIG}
@@ -344,7 +344,7 @@ function TabTendenciasM({ dfM, munis }) {
       </Card>
       <Card title="Top 15 Municipios">
         <div className="w-full h-[400px]">
-          <PlotlyComponent
+          <Plot
             data={[{ x: porMun15.map(r => r.Valor), y: porMun15.map(r => r.Municipio), type: 'bar', orientation: 'h', marker: { color: '#ff6b6b' } }]}
             layout={{ ...LAYOUT_BASE, autosize: true, margin: { l:120, r:20, t:10, b:40 }, yaxis: { ...LAYOUT_BASE.yaxis, type: 'category' } }}
             config={PLOTLY_CONFIG}
