@@ -96,7 +96,9 @@ export default function MapaChoropleth({
     return vals.length ? d3.max(vals) : 0;
   }, [totalesPorMun]);
 
-  // ── Dibujar mapa con D3 ───────────────────────────────────────────────────
+  // ── Efecto 1: Montar SVG, proyección y paths del GeoJSON ─────────────────
+  // Solo corre cuando cambia el geoJson o el tamaño del contenedor.
+  // NO depende de datos de crimen — los paths se crean una sola vez.
   useEffect(() => {
     if (!geoJson || !svgRef.current || !wrapRef.current) return;
 
@@ -106,29 +108,62 @@ export default function MapaChoropleth({
 
     const svg = d3.select(svgRef.current);
     svg.attr("width", W).attr("height", H);
-    svg.selectAll("*").remove();   // limpiar render anterior
+    svg.selectAll("*").remove();   // limpiar solo al montar/remontarse el GeoJSON
 
     // Proyección centrada en Sonora
     const projection = d3.geoMercator().fitSize([W, H], geoJson);
     const pathGen    = d3.geoPath().projection(projection);
 
-    const g = svg.append("g");
+    const g = svg.append("g").attr("class", "map-group");
 
     // ── Municipios ──
     g.selectAll("path")
       .data(geoJson.features)
       .join("path")
       .attr("d", pathGen)
+      .attr("fill", COLOR_VACIO)   // color base; se actualiza en efecto 2
+      .attr("stroke", COLOR_BORDE)
+      .attr("stroke-width", 0.8)
+      .attr("cursor", "pointer")
+      .attr("class", "mun-path");
+
+    // ── Zoom + pan con D3 ──
+    const zoom = d3.zoom()
+      .scaleExtent([1, 8])
+      .on("zoom", (e) => g.attr("transform", e.transform));
+    svg.call(zoom);
+    zoomRef.current = zoom;
+
+  }, [geoJson]);  // ← solo geoJson, no los datos de crimen
+
+  // ── Efecto 2: Actualizar colores, bordes y eventos interactivos ───────────
+  // Corre cada vez que cambian datos, filtros o municipio seleccionado.
+  // NO destruye los nodos SVG — solo cambia sus atributos.
+  useEffect(() => {
+    if (!geoJson || !svgRef.current || !wrapRef.current) return;
+
+    const container = wrapRef.current;
+    const svg = d3.select(svgRef.current);
+    const paths = svg.selectAll("path.mun-path");
+
+    if (paths.empty()) return;  // SVG aún no está montado
+
+    // Actualizar fill y stroke sin recrear nodos
+    paths
       .attr("fill", (d) => {
         const nom = d.properties?.NOMGEO || d.properties?.NOM_MUN || d.properties?.nombre;
         const val = totalesPorMun[nom];
         return val != null ? escalaColor(val) : COLOR_VACIO;
       })
-      .attr("stroke", COLOR_BORDE)
-      .attr("stroke-width", 0.8)
-      .attr("cursor", "pointer")
-      .attr("class", "mun-path")
-      // hover
+      .attr("stroke", (d) => {
+        const nom = d.properties?.NOMGEO || d.properties?.NOM_MUN || d.properties?.nombre;
+        return nom === selectedMun ? "#ffffff" : COLOR_BORDE;
+      })
+      .attr("stroke-width", (d) => {
+        const nom = d.properties?.NOMGEO || d.properties?.NOM_MUN || d.properties?.nombre;
+        return nom === selectedMun ? 2.5 : 0.8;
+      })
+      // re-bind eventos (necesario para que capturen el closure actualizado)
       .on("mousemove", (event, d) => {
         const nom = d.properties?.NOMGEO || d.properties?.NOM_MUN || d.properties?.nombre || "—";
         const val = totalesPorMun[nom] ?? 0;
@@ -138,31 +173,12 @@ export default function MapaChoropleth({
       .on("mouseleave", () => setTooltip(null))
       .on("click", (event, d) => {
         const nom = d.properties?.NOMGEO || d.properties?.NOM_MUN || d.properties?.nombre;
-        // Si ya está seleccionado, lo deseleccionamos; si no, lo seleccionamos.
         if (selectedMun === nom) {
           onMunSelect?.('');
         } else {
           onMunSelect?.(nom);
         }
       });
-
-    // ── Highlight del seleccionado ──
-    if (selectedMun) {
-      g.selectAll("path")
-        .filter((d) => {
-          const nom = d.properties?.NOMGEO || d.properties?.NOM_MUN || d.properties?.nombre;
-          return nom === selectedMun;
-        })
-        .attr("stroke", "#ffffff")
-        .attr("stroke-width", 2.5);
-    }
-
-    // ── Zoom + pan con D3 ──
-    const zoom = d3.zoom()
-      .scaleExtent([1, 8])
-      .on("zoom", (e) => g.attr("transform", e.transform));
-    svg.call(zoom);
-    zoomRef.current = zoom;  // guardar referencia para los botones
 
   }, [geoJson, totalesPorMun, escalaColor, selectedMun, onMunSelect]);
 

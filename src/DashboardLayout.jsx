@@ -5,16 +5,22 @@
 // Toda la lógica de renders vive en sus componentes dedicados.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import React, { useState, useMemo } from 'react';
-import { LayoutDashboard, MapPin, Users, Settings2, ShieldAlert, BadgeInfo, Download, Info } from 'lucide-react';
+import React, { useState, useMemo, Suspense, lazy } from 'react';
+import { LayoutDashboard, MapPin, Users, Settings2, ShieldAlert, BadgeInfo, Download, Info, Loader2 } from 'lucide-react';
 import Papa from 'papaparse';
-import PlotlyComponent from 'react-plotly.js';
-import TabMunicipal  from './components/TabMunicipal';
-import TabTendencias from './components/TabTendencias';
-import TabVictimas   from './components/TabVictimas';
 import { useFilterState } from './hooks/useFilterState';
 
-const Plot = PlotlyComponent.default || PlotlyComponent;
+const Plot = lazy(() => import('react-plotly.js').then(m => ({ default: m.default?.default || m.default || m })));
+const TabMunicipal = lazy(() => import('./components/TabMunicipal'));
+const TabTendencias = lazy(() => import('./components/TabTendencias'));
+const TabVictimas = lazy(() => import('./components/TabVictimas'));
+
+const FallbackLoader = () => (
+  <div className="flex justify-center items-center py-20 text-[var(--color-dash-muted)]">
+    <Loader2 size={32} className="animate-spin" />
+    <span className="ml-3 text-sm tracking-widest uppercase">Cargando Módulo...</span>
+  </div>
+);
 
 // ── Constantes ───────────────────────────────────────────────────────────────
 const COLORES = [
@@ -306,7 +312,9 @@ export default function DashboardLayout({ data }) {
           ))}
         </div>
 
-        {renderContent()}
+        <Suspense fallback={<FallbackLoader />}>
+          {renderContent()}
+        </Suspense>
 
       </main>
     </div>
@@ -361,24 +369,28 @@ function TabTendenciasM({ dfM, munis }) {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-[var(--color-dash-border)] border-dashed">
       <Card title="Evolución Top 5">
         <div className="w-full h-[400px]">
-          <Plot
-            data={traces5}
-            layout={{ ...LAYOUT_BASE, autosize: true, legend: { orientation: 'h', y: -0.2 }, margin: { t:10, r:10, b:80, l:50 }, xaxis: { ...LAYOUT_BASE.xaxis, type: 'category' } }}
-            config={PLOTLY_CONFIG}
-            style={{ width: '100%', height: '100%' }}
-            useResizeHandler
-          />
+          <Suspense fallback={<FallbackLoader />}>
+            <Plot
+              data={traces5}
+              layout={{ ...LAYOUT_BASE, autosize: true, legend: { orientation: 'h', y: -0.2 }, margin: { t:10, r:10, b:80, l:50 }, xaxis: { ...LAYOUT_BASE.xaxis, type: 'category' } }}
+              config={PLOTLY_CONFIG}
+              style={{ width: '100%', height: '100%' }}
+              useResizeHandler
+            />
+          </Suspense>
         </div>
       </Card>
       <Card title="Top 15 Municipios">
         <div className="w-full h-[400px]">
-          <Plot
-            data={[{ x: porMun15.map(r => r.Valor), y: porMun15.map(r => r.Municipio), type: 'bar', orientation: 'h', marker: { color: '#ff6b6b' } }]}
-            layout={{ ...LAYOUT_BASE, autosize: true, margin: { l:120, r:20, t:10, b:40 }, yaxis: { ...LAYOUT_BASE.yaxis, type: 'category' } }}
-            config={PLOTLY_CONFIG}
-            style={{ width: '100%', height: '100%' }}
-            useResizeHandler
-          />
+          <Suspense fallback={<FallbackLoader />}>
+            <Plot
+              data={[{ x: porMun15.map(r => r.Valor), y: porMun15.map(r => r.Municipio), type: 'bar', orientation: 'h', marker: { color: '#ff6b6b' } }]}
+              layout={{ ...LAYOUT_BASE, autosize: true, margin: { l:120, r:20, t:10, b:40 }, yaxis: { ...LAYOUT_BASE.yaxis, type: 'category' } }}
+              config={PLOTLY_CONFIG}
+              style={{ width: '100%', height: '100%' }}
+              useResizeHandler
+            />
+          </Suspense>
         </div>
       </Card>
     </div>
