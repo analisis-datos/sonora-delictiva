@@ -22,3 +22,22 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# AI Assistant config (Antigravity / Claude)
+.agent/
+.gemini/
+CLAUDE.md
+
+# Raw data files (heavy, generated locally by ETL scripts)
+Data/
+
+# Temporary / scratch files
+tmp.txt
+*.tmp
+
+# Dev-only scratch folders
+mapa-choropleth/
+{scripts,output}/
+
+# Python virtual environment
+.venv/
