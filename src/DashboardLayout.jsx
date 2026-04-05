@@ -9,8 +9,6 @@ import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { LayoutDashboard, MapPin, Users, Settings2, ShieldAlert, BadgeInfo, Download, Info, Loader2, BellRing, Share2, Check } from 'lucide-react';
 import Papa from 'papaparse';
 import { Toaster, toast } from 'react-hot-toast';
-import * as reactWindow from 'react-window';
-const { FixedSizeList } = reactWindow;
 import { useFilterState } from './hooks/useFilterState';
 import { useTasaPoblacion } from './hooks/useTasaPoblacion';
 
@@ -248,9 +246,10 @@ const ExportMenu = ({ df, dfV, activeTab, filtAnno, filtDelito, filtMunicipio })
 };
 
 export default function DashboardLayout({ data }) {
-  if (!estatal || !municipal || !victimas) {
+  if (!data?.estatal || !data?.municipal || !data?.victimas) {
       throw new Error("Datos vitales ausentes en el JSON base.");
   }
+  const { meta = {}, estatal, municipal, victimas } = data;
 
   // Filtros sincronizados con la URL
   const [filtAnno,     setFiltAnno]     = useFilterState('año', '');
@@ -632,24 +631,19 @@ function TabTendenciasM({ dfM, munis }) {
           </Suspense>
         </div>
       </Card>
-      <Card title="Listado de Municipios (Virtual Scroll)">
-        <div className="w-full h-[400px] border border-gray-700/50 rounded-lg overflow-hidden relative bg-[#1e2235]">
-           <FixedSizeList height={400} itemCount={rankingM.length} itemSize={50} width="100%">
-             {({ index, style }) => {
-                const fila = rankingM[index];
-                return (
-                  <div style={style} className={`flex justify-between items-center px-4 ${index % 2 === 0 ? 'bg-[#1a1d27]/50' : 'bg-[#1e2235]/50'} hover:bg-gray-700/30 transition-colors border-b border-gray-700/30`}>
-                    <div className="flex items-center gap-3 w-1/2">
-                       <span className="text-xs font-bold text-gray-500 w-5">{index + 1}</span>
-                       <span className="text-sm font-medium text-gray-200 truncate">{fila.Municipio}</span>
-                    </div>
-                    <div className="text-sm font-bold text-white tracking-wider">
-                       {fila.Valor.toLocaleString('es-MX')} <span className="text-xs font-normal text-gray-500 ml-1">casos</span>
-                    </div>
-                  </div>
-                );
-             }}
-           </FixedSizeList>
+      <Card title="Listado de Municipios (Ranking Completo)">
+        <div className="w-full h-[400px] border border-gray-700/50 rounded-lg overflow-y-auto bg-[#1e2235]">
+           {rankingM.map((fila, index) => (
+              <div key={fila.Municipio} className={`flex justify-between items-center px-4 py-3 ${index % 2 === 0 ? 'bg-[#1a1d27]/50' : 'bg-[#1e2235]/50'} hover:bg-gray-700/30 transition-colors border-b border-gray-700/30`}>
+                <div className="flex items-center gap-3 w-1/2">
+                   <span className="text-xs font-bold text-gray-500 w-5">{index + 1}</span>
+                   <span className="text-sm font-medium text-gray-200 truncate">{fila.Municipio}</span>
+                </div>
+                <div className="text-sm font-bold text-white tracking-wider">
+                   {fila.Valor.toLocaleString('es-MX')} <span className="text-xs font-normal text-gray-500 ml-1">casos</span>
+                </div>
+              </div>
+           ))}
         </div>
       </Card>
     </div>
