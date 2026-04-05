@@ -21,6 +21,7 @@
     "plotly.js": "^3.4.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-hot-toast": "^2.6.0",
     "react-plotly.js": "^2.6.0",
     "tailwindcss": "^4.2.2",
     "topojson-client": "^3.1.0"

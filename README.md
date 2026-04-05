@@ -1,6 +1,9 @@
 # 🛡️ Sonora Delictiva: Dashboard Interactivo de Inteligencia
 Un sistema moderno de visualización y análisis de datos enfocados en la seguridad ciudadana e inteligencia delictiva del estado de Sonora, México. 
 
+> [!WARNING]
+> 🚧 **Aviso de Desarrollo:** Este proyecto se encuentra actualmente **en proceso** y no está terminado. El código, datos y estructura seguirán en esquema de mejora continua.
+
 Basado en la filosofía de **Datos Abiertos**, este tablero extrae y procesa los históricos del Secretariado Ejecutivo del Sistema Nacional de Seguridad Pública (SESNSP) mediante una canalización automatizada en Python, montando posteriormente una aplicación React con estética y responsividad de última generación.
 
 ![Vite](https://img.shields.io/badge/Vite-B73BFE?style=for-the-badge&logo=vite&logoColor=FFD62E)

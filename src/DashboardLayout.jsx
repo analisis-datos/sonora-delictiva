@@ -5,15 +5,23 @@
 // Toda la lógica de renders vive en sus componentes dedicados.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import React, { useState, useMemo, Suspense, lazy } from 'react';
-import { LayoutDashboard, MapPin, Users, Settings2, ShieldAlert, BadgeInfo, Download, Info, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
+import { LayoutDashboard, MapPin, Users, Settings2, ShieldAlert, BadgeInfo, Download, Info, Loader2, BellRing, Share2, Check } from 'lucide-react';
 import Papa from 'papaparse';
+import { Toaster, toast } from 'react-hot-toast';
 import { useFilterState } from './hooks/useFilterState';
+import { useTasaPoblacion } from './hooks/useTasaPoblacion';
 
 const Plot = lazy(() => import('react-plotly.js').then(m => ({ default: m.default?.default || m.default || m })));
 const TabMunicipal = lazy(() => import('./components/TabMunicipal'));
 const TabTendencias = lazy(() => import('./components/TabTendencias'));
 const TabVictimas = lazy(() => import('./components/TabVictimas'));
+const TabAlertaTemprana = lazy(() => import('./components/TabAlertaTemprana'));
+
+const TotalCarpetasModal = lazy(() => import('./components/Modals/TotalCarpetasModal'));
+const PrincipalDelitoModal = lazy(() => import('./components/Modals/PrincipalDelitoModal'));
+const MaxMunicipioModal = lazy(() => import('./components/Modals/MaxMunicipioModal'));
+const TotalVictimasModal = lazy(() => import('./components/Modals/TotalVictimasModal'));
 
 const FallbackLoader = () => (
   <div className="flex justify-center items-center py-20 text-[var(--color-dash-muted)]">
@@ -62,18 +70,48 @@ const FilterSelect = ({ label, value, onChange, options }) => (
   </div>
 );
 
-const KpiBox = ({ label, value, sub, color }) => (
-  <div className="glass rounded-xl p-5 hover:border-gray-500 transition-colors">
-    <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">{label}</div>
-    <div
-      className={`text-xl font-bold leading-snug mb-1 line-clamp-2 ${color || 'text-white'}`}
-      title={typeof value === 'string' ? value : undefined}
-    >
-      {value ?? '—'}
+const Sparkline = ({ data, color = "#4f72ff" }) => {
+  if (!data || data.length < 2) return null;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const width = 80;
+  const height = 28;
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((v - min) / range) * height;
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <svg width={width} height={height} className="overflow-visible ml-auto opacity-70">
+      <polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+};
+
+const KpiBox = ({ label, value, sub, color, trendData, trendColor, size = 'small', highlight = false, onClick }) => {
+  const isLarge = size === 'large';
+  const bgClass = highlight ? 'bg-blue-900/20 border-blue-700/50' : 'glass hover:border-gray-500';
+  const clickClass = onClick ? 'cursor-pointer hover:border-blue-500 transform hover:-translate-y-1' : '';
+  return (
+    <div onClick={onClick} className={`${bgClass} ${clickClass} rounded-xl p-5 transition-all duration-300 flex flex-col justify-between h-full shadow-lg`}>
+      <div>
+        <div className={`${isLarge ? 'text-sm' : 'text-xs'} uppercase tracking-wide text-gray-500 mb-2 font-medium`}>{label}</div>
+        <div
+          className={`${isLarge ? 'text-4xl' : 'text-2xl'} font-bold leading-snug mb-1 line-clamp-2 ${color || 'text-white'}`}
+          title={typeof value === 'string' ? value : undefined}
+        >
+          {value ?? '—'}
+        </div>
+      </div>
+      <div className="flex items-end justify-between mt-2 pt-1 h-7">
+        <div className={`${isLarge ? 'text-sm' : 'text-xs'} text-[var(--color-dash-muted)] opacity-80`}>{sub}</div>
+        {trendData && <Sparkline data={trendData} color={trendColor || "#4f72ff"} />}
+      </div>
     </div>
-    {sub && <div className="text-xs text-[var(--color-dash-muted)] opacity-80">{sub}</div>}
-  </div>
-);
+  );
+};
 
 const Badge = ({ text, icon, color = 'text-gray-400', bg = 'bg-gray-800', border = 'border-gray-700' }) => (
   <span className={`px-3 py-1.5 ${bg} border ${border} rounded-full ${color} flex items-center gap-1.5 shadow-inner text-xs font-mono whitespace-nowrap`}>
@@ -83,6 +121,120 @@ const Badge = ({ text, icon, color = 'text-gray-400', bg = 'bg-gray-800', border
 );
 
 // ── Componente principal ─────────────────────────────────────────────────────
+const GlosarioModal = ({ isOpen, onClose }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in" onClick={onClose}>
+      <div className="glass bg-[#1a1d27] rounded-2xl w-full max-w-lg p-6 shadow-2xl border border-gray-700" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-bold text-white">Glosario de Términos</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-xl">&times;</button>
+        </div>
+        <div className="space-y-4 text-sm text-gray-300">
+          <div><strong className="text-blue-400">Carpeta:</strong> Unidad de investigación abierta por la Fiscalía. Puede involucrar uno o múltiples delitos y víctimas.</div>
+          <div><strong className="text-blue-400">Víctimas:</strong> Número de personas afectadas individualmente. Solo aplica para ciertos delitos.</div>
+          <div><strong className="text-blue-400">Delito:</strong> Tipificación jurídica del acto ilícito según el SESNSP.</div>
+          <div><strong className="text-blue-400">Municipio:</strong> Demarcación territorial donde ocurrió el hecho.</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const InsightCard = ({ porFechaData, onDrillDown }) => {
+  const n = porFechaData.length;
+  if(n < 2) return null;
+  const last = porFechaData[n-1].Valor;
+  const prev = porFechaData[n-2].Valor;
+  if(prev === 0) return null;
+  const ratio = (last - prev) / prev;
+  if(Math.abs(ratio) < 0.3) return null;
+
+  const isUp = ratio > 0;
+  return (
+    <div className={`mb-6 p-4 rounded-xl flex items-center justify-between border ${isUp ? 'bg-red-900/20 border-red-700/50' : 'bg-green-900/20 border-green-700/50'}`}>
+      <div className="flex items-center gap-3">
+        <span className="text-2xl">{isUp ? '⚠️' : '🎉'}</span>
+        <div>
+          <h4 className={`text-sm font-bold ${isUp ? 'text-red-400' : 'text-green-400'} uppercase tracking-wider`}>Alerta de Tendencia</h4>
+          <p className="text-sm text-gray-300">Variación drástica del {(ratio*100).toFixed(1)}% mensual respecto al mes anterior.</p>
+        </div>
+      </div>
+      <button onClick={onDrillDown} className="px-4 py-2 bg-[#1a1d27] border border-gray-600 rounded-lg text-sm text-white hover:bg-gray-700 transition">Ver Análisis</button>
+    </div>
+  );
+};
+
+const ExportMenu = ({ df, dfV, activeTab, filtAnno, filtDelito, filtMunicipio }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Cerrar al clickear fuera
+  useEffect(() => {
+    const handleOutsideClick = () => setIsOpen(false);
+    if (isOpen) document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, [isOpen]);
+
+  const getDataset = () => activeTab === 2 ? dfV : df;
+
+  const handleExportCSV = () => {
+    const dataset = getDataset();
+    const csv = Papa.unparse(dataset);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Sonora_${activeTab === 2 ? 'Victimas' : 'Carpetas'}_${Date.now()}.csv`;
+    link.click();
+    setIsOpen(false);
+  };
+
+  const handleExportJSON = () => {
+    const dataset = getDataset();
+    const payload = {
+      metadata: {
+        titulo: "Sonora Delictiva - Datos Filtrados",
+        filtros: {
+          año: filtAnno || "Todos",
+          delito: filtDelito || "Todos",
+          municipio: filtMunicipio || "Todos"
+        },
+        fecha_exportacion: new Date().toISOString(),
+        total_registros: dataset.length,
+        fuente: "Secretariado Ejecutivo del Sistema Nacional de Seguridad Pública (SESNSP)"
+      },
+      data: dataset
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Sonora_Dataset_${Date.now()}.json`;
+    link.click();
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative" onClick={e => e.stopPropagation()}>
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-4 py-2 bg-[#2a2e3d]/80 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/30 rounded-lg text-sm font-medium transition-all shadow-lg min-w-[140px] justify-center"
+      >
+        <Download size={16} /> Exportar <span className="text-[10px] opacity-70 ml-1">▼</span>
+      </button>
+      
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-48 bg-[#1a1d27] border border-gray-700 rounded-lg shadow-xl z-50 py-1 overflow-hidden animate-in fade-in zoom-in-95">
+          <button onClick={handleExportCSV} className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-[#2e3250] hover:text-white transition-colors">
+            📄 Formato CSV
+          </button>
+          <button onClick={handleExportJSON} className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-[#2e3250] hover:text-white transition-colors">
+            {`{ }`} Formato JSON
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function DashboardLayout({ data }) {
   const { meta = {}, estatal, municipal, victimas } = data;
 
@@ -91,6 +243,24 @@ export default function DashboardLayout({ data }) {
   const [filtDelito,   setFiltDelito]   = useFilterState('delito', '');
   const [filtMunicipio, setFiltMunicipio] = useFilterState('municipio', '');
   const [activeTab,    setActiveTab]    = useState(0);
+  const [copied,       setCopied]       = useState(false);
+  const [detailModal,  setDetailModal]  = useState({ type: null, isOpen: false });
+  const [glosarioOpen, setGlosarioOpen] = useState(false);
+
+  // FASE 3 Toast Notification On Filter Change
+  useEffect(() => {
+    if (filtAnno || filtDelito || filtMunicipio) {
+      toast(`Filtros: ${[filtAnno, filtDelito, filtMunicipio].filter(Boolean).join(' · ')}`, {
+        style: { background: '#1a1d27', color: '#fff', border: '1px solid #4f72ff' },
+        icon: '🔍'
+      });
+    }
+  }, [filtAnno, filtDelito, filtMunicipio]);
+
+  const { poblacionPorMun, pobCargada } = useTasaPoblacion({});
+  const pobTotalSonora = useMemo(() => {
+    return Object.values(poblacionPorMun).reduce((s, v) => s + (Number(v) || 0), 0);
+  }, [poblacionPorMun]);
 
   // Opciones de filtros
   const annos   = useMemo(() => [...new Set(estatal.map(r => r['Año']))].sort(), [estatal]);
@@ -139,6 +309,18 @@ export default function DashboardLayout({ data }) {
   // KPIs
   const totalCarpetas  = sumaTotal(df);
   const totalVictimas  = sumaTotal(dfV);
+  
+  const trendVictimas = useMemo(() => {
+    const full = agrupar(dfV, ['Fecha']).sort((a, b) => a.Fecha > b.Fecha ? 1 : -1);
+    let last = full.length - 1;
+    while (last >= 0 && full[last].Valor === 0) last--;
+    return last >= 0 ? full.slice(0, last + 1).map(r => r.Valor) : full.map(r => r.Valor);
+  }, [dfV]);
+
+  const tasaGlobal = useMemo(() => {
+    if (!pobCargada || pobTotalSonora === 0 || totalCarpetas === 0) return null;
+    return ((totalCarpetas / pobTotalSonora) * 100000).toFixed(1);
+  }, [pobCargada, pobTotalSonora, totalCarpetas]);
   const porDelito      = agrupar(df, ['Subtipo de delito']).sort((a, b) => b.Valor - a.Valor)[0] || {};
   const porMun         = agrupar(dfM, ['Municipio']).sort((a, b) => b.Valor - a.Valor)[0] || {};
 
@@ -163,6 +345,7 @@ export default function DashboardLayout({ data }) {
     { label: 'Tendencias', icon: <LayoutDashboard size={18} /> },
     { label: 'Municipal',  icon: <MapPin size={18} /> },
     { label: 'Víctimas',   icon: <Users size={18} /> },
+    { label: 'Alerta Temprana', icon: <BellRing size={18} /> },
   ];
 
   const renderContent = () => {
@@ -207,6 +390,9 @@ export default function DashboardLayout({ data }) {
         setFiltMunicipio={setFiltMunicipio}
       />
     );
+    if (activeTab === 3) return (
+      <TabAlertaTemprana df={df} />
+    );
   };
 
   return (
@@ -239,22 +425,21 @@ export default function DashboardLayout({ data }) {
             <Badge
               text={`Actualizado: ${actualizadoText}`}
               icon="🔄"
-              color="text-emerald-300"
-              bg="bg-emerald-900/20"
-              border="border-emerald-700/40"
+              color={Math.floor((new Date() - new Date(meta.generado_en)) / 86400000) < 15 ? "text-emerald-300" : Math.floor((new Date() - new Date(meta.generado_en)) / 86400000) < 45 ? "text-yellow-300" : "text-red-300"}
+              bg={Math.floor((new Date() - new Date(meta.generado_en)) / 86400000) < 15 ? "bg-emerald-900/20" : Math.floor((new Date() - new Date(meta.generado_en)) / 86400000) < 45 ? "bg-yellow-900/20" : "bg-red-900/20"}
+              border={Math.floor((new Date() - new Date(meta.generado_en)) / 86400000) < 15 ? "border-emerald-700/40" : Math.floor((new Date() - new Date(meta.generado_en)) / 86400000) < 45 ? "border-yellow-700/40" : "border-red-700/40"}
             />
-            <Badge
-              text="v2.0"
-              icon="✨"
-              color="text-violet-300"
-              bg="bg-violet-900/20"
-              border="border-violet-700/40"
-            />
+            <button onClick={() => setGlosarioOpen(true)} className="hover:opacity-80 transition-opacity">
+              <Badge text="Glosario" icon="📖" color="text-violet-300" bg="bg-violet-900/20" border="border-violet-700/40" />
+            </button>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-6 mt-8">
+        
+        {/* InsightCard Anomalía */}
+        <InsightCard porFechaData={porFechaData} onDrillDown={() => setActiveTab(3)} />
 
         {/* Filtros */}
         <div className="glass rounded-2xl p-5 flex flex-wrap gap-5 items-end mb-8 animate-in slide-in-from-top-4 duration-500">
@@ -265,34 +450,77 @@ export default function DashboardLayout({ data }) {
           <FilterSelect label="Delito"    value={filtDelito}    onChange={setFiltDelito}    options={delitos} />
           <FilterSelect label="Municipio" value={filtMunicipio} onChange={setFiltMunicipio} options={munis} />
 
-          <div className="flex-1 sm:flex-none flex items-end justify-end ml-auto">
+          <div className="flex-1 sm:flex-none flex items-center justify-end ml-auto gap-3">
             <button
               onClick={() => {
-                const dataset = activeTab === 2 ? dfV : df;
-                const csv  = Papa.unparse(dataset);
-                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                const link = document.createElement('a');
-                link.href  = URL.createObjectURL(blob);
-                link.download = `Sonora_${activeTab === 2 ? 'Victimas' : 'Carpetas'}_${Date.now()}.csv`;
-                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                navigator.clipboard.writeText(window.location.href);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-[#2a2e3d]/80 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/30 rounded-lg text-sm font-medium transition-all shadow-lg"
-              title="Descarga la matriz de datos con los filtros exactos aplicados."
+              className="flex items-center gap-2 px-4 py-2 bg-[#2a2e3d]/80 hover:bg-[#353b4d] text-[var(--color-dash-muted)] hover:text-white border border-[var(--color-dash-border)] rounded-lg text-sm font-medium transition-all shadow-sm relative min-w-[150px] justify-center"
+              title="Copiar URL con los filtros actuales"
             >
-              <Download size={16} /> Descargar Vista (CSV)
+              {copied ? <><Check size={16} className="text-emerald-400"/> Copiado</> : <><Share2 size={16} /> Compartir Vista</>}
             </button>
+            <ExportMenu df={df} dfV={dfV} activeTab={activeTab} filtAnno={filtAnno} filtDelito={filtDelito} filtMunicipio={filtMunicipio} />
           </div>
         </div>
 
+        {/* Chips de filtros activos */}
+        {(filtAnno || filtDelito || filtMunicipio) && (
+          <div className="flex flex-wrap items-center gap-2 mb-6 px-1 animate-in fade-in">
+            <span className="text-xs text-gray-400 uppercase tracking-wider mr-2 bg-gray-800/50 px-3 py-1 rounded-full border border-gray-700">
+              {Number(!!filtAnno) + Number(!!filtDelito) + Number(!!filtMunicipio)} filtro(s) activo(s)
+            </span>
+            {filtAnno && (
+              <span className="flex items-center gap-1.5 px-3 py-1 bg-blue-900/30 text-blue-300 border border-blue-700/50 rounded-full text-xs font-medium shadow-sm">
+                📅 {filtAnno}
+                <button onClick={() => setFiltAnno('')} className="text-blue-200 hover:text-white transition-colors ml-1 w-4 h-4 flex items-center justify-center rounded-full hover:bg-blue-800/50">&times;</button>
+              </span>
+            )}
+            {filtDelito && (
+              <span className="flex items-center gap-1.5 px-3 py-1 bg-blue-900/30 text-blue-300 border border-blue-700/50 rounded-full text-xs font-medium shadow-sm">
+                🔪 {filtDelito}
+                <button onClick={() => setFiltDelito('')} className="text-blue-200 hover:text-white transition-colors ml-1 w-4 h-4 flex items-center justify-center rounded-full hover:bg-blue-800/50">&times;</button>
+              </span>
+            )}
+            {filtMunicipio && (
+              <span className="flex items-center gap-1.5 px-3 py-1 bg-blue-900/30 text-blue-300 border border-blue-700/50 rounded-full text-xs font-medium shadow-sm">
+                📍 {filtMunicipio}
+                <button onClick={() => setFiltMunicipio('')} className="text-blue-200 hover:text-white transition-colors ml-1 w-4 h-4 flex items-center justify-center rounded-full hover:bg-blue-800/50">&times;</button>
+              </span>
+            )}
+            <button 
+              onClick={() => { setFiltAnno(''); setFiltDelito(''); setFiltMunicipio(''); }}
+              className="text-xs text-gray-500 hover:text-gray-300 underline mx-2 transition-colors"
+            >
+              Limpiar todo
+            </button>
+          </div>
+        )}
+
         {/* KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-          <KpiBox label="Total Carpetas"    value={totalCarpetas.toLocaleString('es-MX')} />
-          <KpiBox label="Variación Mensual" value={labelTasa}
-            sub={tasaCambio !== null ? (tasaCambio > 0 ? 'Aumento vs mes anterior' : 'Descenso vs mes anterior') : 'Insuficiente'}
-            color={tasaCambio > 0 ? 'text-red-400' : tasaCambio < 0 ? 'text-green-400' : 'text-blue-400'} />
-          <KpiBox label="Total Víctimas"    value={totalVictimas.toLocaleString('es-MX')} sub="Registradas en el periodo" />
-          <KpiBox label="Principal Delito"  value={porDelito['Subtipo de delito']}         sub={`${porDelito.Valor?.toLocaleString('es-MX')} casos`} />
-          <KpiBox label="Max Municipio"     value={porMun.Municipio}                       sub={`${porMun.Valor?.toLocaleString('es-MX')} casos`} />
+        <div className="grid grid-cols-2 lg:grid-cols-12 gap-4 mb-8">
+          <div className="col-span-2 lg:col-span-4">
+            <KpiBox label="Total Carpetas" value={totalCarpetas.toLocaleString('es-MX')} trendData={porFechaData.map(r => r.Valor)} trendColor="#4f72ff" size="large" highlight={true} onClick={() => setDetailModal({type: 'carpetas', isOpen: true})} />
+          </div>
+          <div className="col-span-1 lg:col-span-2">
+            <KpiBox label="Tasa Estatal" value={tasaGlobal ? tasaGlobal : '—'} sub="Por 100k hab." trendData={tasaGlobal ? porFechaData.map(r => r.Valor) : null} trendColor="#a29bfe" color="text-violet-400" />
+          </div>
+          <div className="col-span-1 lg:col-span-2">
+            <KpiBox label="Variación" value={labelTasa}
+              sub={tasaCambio !== null ? (tasaCambio > 0 ? 'vs mes anterior' : 'vs mes anterior') : 'Insuficiente'}
+              color={tasaCambio > 0 ? 'text-red-400' : tasaCambio < 0 ? 'text-green-400' : 'text-blue-400'} />
+          </div>
+          <div className="col-span-1 lg:col-span-2">
+            <KpiBox label="Total Víctimas" value={totalVictimas.toLocaleString('es-MX')} trendData={trendVictimas} trendColor="#43e97b" color="text-emerald-400" onClick={() => setDetailModal({type: 'victimas', isOpen: true})} />
+          </div>
+          <div className="col-span-1 lg:col-span-2">
+            <KpiBox label="Principal Delito" value={porDelito['Subtipo de delito']} sub={`${porDelito.Valor?.toLocaleString('es-MX')} casos`} color="text-orange-400" onClick={() => setDetailModal({type: 'delito', isOpen: true})} />
+          </div>
+          <div className="col-span-2 lg:col-span-2">
+            <KpiBox label="Max Municipio" value={porMun.Municipio} sub={`${porMun.Valor?.toLocaleString('es-MX')} casos`} color="text-pink-400" onClick={() => setDetailModal({type: 'municipio', isOpen: true})}/>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -317,6 +545,16 @@ export default function DashboardLayout({ data }) {
         </Suspense>
 
       </main>
+
+      <Toaster position="bottom-right" />
+      <GlosarioModal isOpen={glosarioOpen} onClose={() => setGlosarioOpen(false)} />
+      
+      <Suspense fallback={null}>
+        {detailModal.type === 'carpetas' && <TotalCarpetasModal isOpen={detailModal.isOpen} onClose={() => setDetailModal({type: null, isOpen: false})} df={df} tasaCambio={tasaCambio} porFechaData={porFechaData} onFilterDelito={setFiltDelito} />}
+        {detailModal.type === 'delito' && <PrincipalDelitoModal isOpen={detailModal.isOpen} onClose={() => setDetailModal({type: null, isOpen: false})} df={df} delitoNombre={porDelito['Subtipo de delito']} porDelito={porDelito} onFilterDelito={setFiltDelito} />}
+        {detailModal.type === 'municipio' && <MaxMunicipioModal isOpen={detailModal.isOpen} onClose={() => setDetailModal({type: null, isOpen: false})} df={dfM} municipioNombre={porMun.Municipio} porMun={porMun} onFilterMunicipio={setFiltMunicipio} />}
+        {detailModal.type === 'victimas' && <TotalVictimasModal isOpen={detailModal.isOpen} onClose={() => setDetailModal({type: null, isOpen: false})} dfV={dfV} df={df} totalVictimas={totalVictimas} setActiveTab={setActiveTab} />}
+      </Suspense>
     </div>
   );
 }
