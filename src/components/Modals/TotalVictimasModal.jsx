@@ -1,4 +1,5 @@
 import React, { useMemo, Suspense, lazy } from 'react';
+import { Loader2 } from 'lucide-react';
 import DetailModal from '../DetailModal';
 
 const Plot = lazy(() => import('react-plotly.js').then(m => ({ default: m.default?.default || m.default || m })));
@@ -69,11 +70,15 @@ export default function TotalVictimasModal({ isOpen, onClose, dfV, df, totalVict
          <div className="glass p-5 rounded-xl h-[320px] flex flex-col border border-gray-700/50">
             <h3 className="text-sm text-gray-400 uppercase font-bold mb-2">Composición por Delito</h3>
             <div className="flex-1 w-full min-h-0 relative">
-              <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center">Cargando...</div>}>
+              <Suspense fallback={<div className="absolute inset-0 flex flex-col items-center justify-center gap-3"><Loader2 size={40} className="animate-spin text-[#43e97b]" /><span className="text-[#43e97b] font-medium text-sm tracking-wide">Cargando composición de víctimas...</span></div>}>
                   <Plot 
                     data={pieTraces} 
                     layout={{ paper_bgcolor:'transparent', plot_bgcolor:'transparent', margin:{l:10, r:10, t:10, b:10}, font:{color:'#8892b0'}, showlegend: false }} 
-                    style={{width:'100%', height:'100%'}} config={{displayModeBar:false, responsive:true}}/>
+                    style={{width:'100%', height:'100%'}} 
+                    config={{displayModeBar:false, responsive:true}}
+                    role="img"
+                    aria-label="Gráfica de composición delictiva por proporción de víctimas en dona"
+                  />
               </Suspense>
             </div>
          </div>

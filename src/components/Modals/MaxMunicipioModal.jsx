@@ -1,4 +1,5 @@
 import React, { useMemo, Suspense, lazy } from 'react';
+import { Loader2 } from 'lucide-react';
 import DetailModal from '../DetailModal';
 
 const Plot = lazy(() => import('react-plotly.js').then(m => ({ default: m.default?.default || m.default || m })));
@@ -74,7 +75,7 @@ export default function MaxMunicipioModal({ isOpen, onClose, df, municipioNombre
          <div className="glass p-5 rounded-xl h-[320px] flex flex-col border border-gray-700/50">
             <h3 className="text-sm text-gray-400 uppercase font-bold mb-2">Dinámica {municipioNombre} vs Estado</h3>
             <div className="flex-1 w-full min-h-0 relative">
-              <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center">Cargando...</div>}>
+              <Suspense fallback={<div className="absolute inset-0 flex flex-col items-center justify-center gap-3"><Loader2 size={40} className="animate-spin text-[#fd79a8]" /><span className="text-[#fd79a8] font-medium text-sm tracking-wide">Cargando dinámica municipal...</span></div>}>
                   <Plot 
                     data={tracesEvolucion} 
                     layout={{ 
@@ -84,7 +85,11 @@ export default function MaxMunicipioModal({ isOpen, onClose, df, municipioNombre
                       yaxis2: { overlaying: 'y', side: 'right', showgrid: false, title: 'Estatal' },
                       legend: { orientation: 'h', y: -0.2 }
                     }} 
-                    style={{width:'100%', height:'100%'}} config={{displayModeBar:false, responsive:true}}/>
+                    style={{width:'100%', height:'100%'}} 
+                    config={{displayModeBar:false, responsive:true}}
+                    role="img"
+                    aria-label="Gráfica comparativa de dinámica municipal y evolución histórica"
+                  />
               </Suspense>
             </div>
          </div>

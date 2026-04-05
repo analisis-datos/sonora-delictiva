@@ -117,6 +117,8 @@ export default function TabAlertaTemprana({ df }) {
               config={PLOTLY_CONFIG}
               style={{ width: '100%', height: '100%' }}
               useResizeHandler
+              role="img"
+              aria-label="Proyección estadística lineal de alerta temprana sobre tendencia de delitos"
             />
           </Suspense>
         </div>

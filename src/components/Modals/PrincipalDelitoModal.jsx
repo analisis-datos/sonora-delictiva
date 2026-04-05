@@ -1,4 +1,5 @@
 import React, { useMemo, Suspense, lazy } from 'react';
+import { Loader2 } from 'lucide-react';
 import DetailModal from '../DetailModal';
 
 const Plot = lazy(() => import('react-plotly.js').then(m => ({ default: m.default?.default || m.default || m })));
@@ -55,8 +56,15 @@ export default function PrincipalDelitoModal({ isOpen, onClose, df, delitoNombre
          <div className="glass p-5 rounded-xl h-[320px] flex flex-col border border-gray-700/50">
             <h3 className="text-sm text-gray-400 uppercase font-bold mb-2">Evolución Regional Global</h3>
             <div className="flex-1 w-full min-h-0 relative">
-              <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center">Cargando...</div>}>
-                  <Plot data={traceEvolucion} layout={{ paper_bgcolor:'transparent', plot_bgcolor:'transparent', margin:{l:40, r:10, t:10, b:40}, font:{color:'#8892b0'}, xaxis:{type: 'category', gridcolor:'#2e3250'}, yaxis:{gridcolor:'#2e3250'} }} style={{width:'100%', height:'100%'}} config={{displayModeBar:false, responsive:true}}/>
+              <Suspense fallback={<div className="absolute inset-0 flex flex-col items-center justify-center gap-3"><Loader2 size={40} className="animate-spin text-[#e07010]" /><span className="text-[#e07010] font-medium text-sm tracking-wide">Cargando análisis del delito...</span></div>}>
+                  <Plot 
+                    data={traceEvolucion} 
+                    layout={{ paper_bgcolor:'transparent', plot_bgcolor:'transparent', margin:{l:40, r:10, t:10, b:40}, font:{color:'#8892b0'}, xaxis:{type: 'category', gridcolor:'#2e3250'}, yaxis:{gridcolor:'#2e3250'} }} 
+                    style={{width:'100%', height:'100%'}} 
+                    config={{displayModeBar:false, responsive:true}}
+                    role="img"
+                    aria-label="Gráfica de evolución temporal del delito seleccionado"
+                  />
               </Suspense>
             </div>
          </div>

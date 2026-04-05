@@ -9,6 +9,8 @@ import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { LayoutDashboard, MapPin, Users, Settings2, ShieldAlert, BadgeInfo, Download, Info, Loader2, BellRing, Share2, Check } from 'lucide-react';
 import Papa from 'papaparse';
 import { Toaster, toast } from 'react-hot-toast';
+import * as reactWindow from 'react-window';
+const { FixedSizeList } = reactWindow;
 import { useFilterState } from './hooks/useFilterState';
 import { useTasaPoblacion } from './hooks/useTasaPoblacion';
 
@@ -39,20 +41,30 @@ const COLORES = [
 
 // ── Utilidades de agregación ─────────────────────────────────────────────────
 function agrupar(arr, keys, valKey = 'Valor') {
-  const map = {};
-  arr.forEach(r => {
-    const k = keys.map(key => r[key]).join('||');
-    map[k] = (map[k] || 0) + (Number(r[valKey]) || 0);
-  });
-  return Object.entries(map).map(([k, v]) => {
-    const obj = { Valor: v };
-    k.split('||').forEach((val, i) => { obj[keys[i]] = val; });
-    return obj;
-  });
+  try {
+    const map = {};
+    arr.forEach(r => {
+      const k = keys.map(key => r[key]).join('||');
+      map[k] = (map[k] || 0) + (Number(r[valKey]) || 0);
+    });
+    return Object.entries(map).map(([k, v]) => {
+      const obj = { Valor: v };
+      k.split('||').forEach((val, i) => { obj[keys[i]] = val; });
+      return obj;
+    });
+  } catch (error) {
+    console.error("Error agrupando datos:", error);
+    return [];
+  }
 }
 
 function sumaTotal(arr) {
-  return arr.reduce((s, r) => s + (Number(r.Valor) || 0), 0);
+  try {
+    return arr.reduce((s, r) => s + (Number(r.Valor) || 0), 0);
+  } catch (error) {
+    console.error("Error sumando datos totales:", error);
+    return 0;
+  }
 }
 
 // ── Componentes UI locales ───────────────────────────────────────────────────
@@ -236,7 +248,9 @@ const ExportMenu = ({ df, dfV, activeTab, filtAnno, filtDelito, filtMunicipio })
 };
 
 export default function DashboardLayout({ data }) {
-  const { meta = {}, estatal, municipal, victimas } = data;
+  if (!estatal || !municipal || !victimas) {
+      throw new Error("Datos vitales ausentes en el JSON base.");
+  }
 
   // Filtros sincronizados con la URL
   const [filtAnno,     setFiltAnno]     = useFilterState('año', '');
@@ -573,14 +587,14 @@ function TabTendenciasM({ dfM, munis }) {
   const PLOTLY_CONFIG = { responsive: true, displayModeBar: false };
   const COLORES_LOCAL = ['#4f72ff','#ff6b6b','#43e97b','#f9ca24','#a29bfe'];
 
-  const porMun15 = useMemo(() =>
-    agrupar(dfM, ['Municipio']).sort((a, b) => b.Valor - a.Valor).slice(0, 15).reverse(),
+  const rankingM = useMemo(() =>
+    agrupar(dfM, ['Municipio']).sort((a, b) => b.Valor - a.Valor),
     [dfM]
   );
 
   const top5 = useMemo(() =>
-    [...porMun15].reverse().slice(0, 5).map(r => r.Municipio),
-    [porMun15]
+    [...rankingM].slice(0, 5).map(r => r.Municipio),
+    [rankingM]
   );
 
   const traces5 = useMemo(() =>
@@ -618,17 +632,24 @@ function TabTendenciasM({ dfM, munis }) {
           </Suspense>
         </div>
       </Card>
-      <Card title="Top 15 Municipios">
-        <div className="w-full h-[400px]">
-          <Suspense fallback={<FallbackLoader />}>
-            <Plot
-              data={[{ x: porMun15.map(r => r.Valor), y: porMun15.map(r => r.Municipio), type: 'bar', orientation: 'h', marker: { color: '#ff6b6b' } }]}
-              layout={{ ...LAYOUT_BASE, autosize: true, margin: { l:120, r:20, t:10, b:40 }, yaxis: { ...LAYOUT_BASE.yaxis, type: 'category' } }}
-              config={PLOTLY_CONFIG}
-              style={{ width: '100%', height: '100%' }}
-              useResizeHandler
-            />
-          </Suspense>
+      <Card title="Listado de Municipios (Virtual Scroll)">
+        <div className="w-full h-[400px] border border-gray-700/50 rounded-lg overflow-hidden relative bg-[#1e2235]">
+           <FixedSizeList height={400} itemCount={rankingM.length} itemSize={50} width="100%">
+             {({ index, style }) => {
+                const fila = rankingM[index];
+                return (
+                  <div style={style} className={`flex justify-between items-center px-4 ${index % 2 === 0 ? 'bg-[#1a1d27]/50' : 'bg-[#1e2235]/50'} hover:bg-gray-700/30 transition-colors border-b border-gray-700/30`}>
+                    <div className="flex items-center gap-3 w-1/2">
+                       <span className="text-xs font-bold text-gray-500 w-5">{index + 1}</span>
+                       <span className="text-sm font-medium text-gray-200 truncate">{fila.Municipio}</span>
+                    </div>
+                    <div className="text-sm font-bold text-white tracking-wider">
+                       {fila.Valor.toLocaleString('es-MX')} <span className="text-xs font-normal text-gray-500 ml-1">casos</span>
+                    </div>
+                  </div>
+                );
+             }}
+           </FixedSizeList>
         </div>
       </Card>
     </div>
