@@ -1,17 +1,87 @@
 <!doctype html>
 <html lang="es">
   <head>
+    <!-- Meta charset y viewport -->
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Dashboard en tiempo real de incidencia delictiva del estado de Sonora. Visualiza tendencias, mapa de calor, y estadísticas municipales basados en datos abiertos del SESNSP.">
-    <meta name="keywords" content="Sonora, seguridad, incidencia delictiva, SESNSP, dashboard, estadística, crímenes">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="apple-touch-icon" href="/vite.svg" />
+    
+    <!-- SEO Básico -->
+    <meta name="description" content="Dashboard interactivo de incidencia delictiva en Sonora. Análisis en tiempo real de carpetas de investigación, víctimas y patrones delictivos basados en datos abiertos SESNSP. Visualiza tendencias, mapas de calor y estadísticas por municipio." />
+    <meta name="keywords" content="Sonora delictividad, estadísticas crimen, seguridad ciudadana, SESNSP, análisis delitos, municipios Sonora, carpetas investigación, datos abiertos, dashboard interactivo" />
+    <meta name="author" content="Análisis Datos" />
+    <meta name="theme-color" content="#0f1119" />
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://analisis-datos.github.io/sonora-delictiva/" />
+    
+    <!-- Open Graph (redes sociales) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Incidencia Delictiva Sonora | Dashboard Interactivo" />
+    <meta property="og:description" content="Visualiza tendencias, mapas de calor y análisis municipal de delictividad en Sonora con datos abiertos SESNSP en tiempo real." />
+    <meta property="og:url" content="https://analisis-datos.github.io/sonora-delictiva/" />
+    <meta property="og:image" content="https://analisis-datos.github.io/sonora-delictiva/og-image.png" />
+    <meta property="og:image:alt" content="Dashboard Sonora Delictiva" />
+    <meta property="og:locale" content="es_MX" />
+    <meta property="og:site_name" content="Incidencia Delictiva Sonora" />
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Incidencia Delictiva Sonora" />
+    <meta name="twitter:description" content="Dashboard de análisis interactivo de delictividad en Sonora" />
+    <meta name="twitter:image" content="https://analisis-datos.github.io/sonora-delictiva/og-image.png" />
+    <meta name="twitter:site" content="@SonoraDelictiva" />
+
+    <!-- Preload de recursos críticos -->
+    <link rel="prefetch" href="data:application/json;base64,ew0KICAiZ2VuZXJhZG9fZW4iOiAiMjAyNi0wNC0wNVQyMjoyNjoxOS4yMTg3OTYiLA0KICAicGVyaW9kb19pbmljaW8iOiAiMjAxNS0wMS0wMSIsDQogICJwZXJpb2RvX2ZpbiI6ICIyMDI2LTAyLTAxIiwNCiAgIm11bmljaXBpb3MiOiA3MywNCiAgInRvdGFsX2NhcnBldGFzIjogNjgwMDQsDQogICJ0b3RhbF92aWN0aW1hcyI6IDY4MzU5DQp9" />
+    <link rel="prefetch" href="/sonora-delictiva/assets/sonora_estatal-DuD5bi7o.csv" />
+    <link rel="prefetch" href="/sonora-delictiva/assets/sonora_municipal-CfaoS328.csv" />
+    <link rel="prefetch" href="/sonora-delictiva/assets/sonora_victimas-CSechuMm.csv" />
+    
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Dataset",
+      "name": "Incidencia Delictiva Sonora",
+      "description": "Dashboard de análisis interactivo de delictividad en Sonora basado en datos abiertos SESNSP",
+      "url": "https://analisis-datos.github.io/sonora-delictiva/",
+      "identifier": "sonora-delictiva-sesnsp-2026",
+      "creator": {
+        "@type": "Organization",
+        "name": "Análisis Datos",
+        "url": "https://github.com/analisis-datos"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Análisis Datos GitHub Pages",
+        "url": "https://analisis-datos.github.io/"
+      },
+      "distribution": {
+        "@type": "DataDownload",
+        "contentUrl": "https://analisis-datos.github.io/sonora-delictiva/public/data/",
+        "encodingFormat": "CSV"
+      },
+      "keywords": "Sonora, delictividad, SESNSP, análisis delitos, seguridad ciudadana",
+      "spatialCoverage": {
+        "@type": "Place",
+        "name": "Sonora, México"
+      },
+      "temporalCoverage": "2020-01-01/2026-12-31",
+      "inLanguage": "es",
+      "dateModified": "2026-04-06"
+    }
+    </script>
+    
     <title>Incidencia Delictiva Sonora | Dashboard Interactivo</title>
-    <script type="module" crossorigin src="/sonora-delictiva/assets/index-C8JwwEuw.js"></script>
+    <script type="module" crossorigin src="/sonora-delictiva/assets/index-BEQBsD4j.js"></script>
     <link rel="modulepreload" crossorigin href="/sonora-delictiva/assets/rolldown-runtime-DF2fYuay.js">
     <link rel="modulepreload" crossorigin href="/sonora-delictiva/assets/plotly-CZq226Y8.js">
     <link rel="modulepreload" crossorigin href="/sonora-delictiva/assets/vendor-DCRyRNF6.js">
-    <link rel="stylesheet" crossorigin href="/sonora-delictiva/assets/index-BYZgtOzV.css">
+    <link rel="stylesheet" crossorigin href="/sonora-delictiva/assets/index-BYRi_nEa.css">
   </head>
   <body>
     <div id="root"></div>
