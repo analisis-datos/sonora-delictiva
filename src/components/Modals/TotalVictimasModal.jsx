@@ -77,28 +77,37 @@ export default function TotalVictimasModal({ isOpen, onClose, dfV, df, totalVict
                     style={{width:'100%', height:'100%'}} 
                     config={{displayModeBar:false, responsive:true}}
                     role="img"
-                    aria-label="Gráfica de composición delictiva por proporción de víctimas en dona"
+                    aria-label="Gráfica circular: Composición de víctimas por tipo de delito"
                   />
               </Suspense>
             </div>
          </div>
          <div className="glass p-5 rounded-xl flex flex-col h-[320px] border border-gray-700/50">
             <h3 className="text-sm text-gray-400 uppercase font-bold mb-4">Top Delitos (Volumen vs Ratio)</h3>
-            <div className="space-y-2.5 overflow-y-auto flex-1 pr-2 custom-scrollbar">
-              {topDelitos.map((d, i) => (
-                <div key={i} className="bg-[#1e2235] p-2.5 rounded-lg border border-gray-700/50 hover:border-gray-600 transition-colors">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm text-gray-200 font-medium truncate">{d['Subtipo de delito']}</span>
-                    <span className="font-bold text-white">{d.Valor.toLocaleString('es-MX')} vict.</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-gray-500">Ratio de gravedad:</span>
-                    <span className={`font-mono px-1 rounded ${d.ratio > 1.5 ? 'bg-red-900/30 text-red-400' : 'bg-gray-800 text-gray-400'}`}>
-                      {d.ratio.toFixed(2)} por caso
-                    </span>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-y-auto flex-1 pr-2 custom-scrollbar">
+              <table className="w-full text-sm">
+                <caption className="sr-only">Tabla: Top Delitos por volumen de víctimas y gravedad</caption>
+                <thead className="border-b border-gray-700">
+                  <tr>
+                    <th scope="col" className="text-left text-xs uppercase font-bold text-gray-400 py-2">Delito</th>
+                    <th scope="col" className="text-right text-xs uppercase font-bold text-gray-400 py-2">Víctimas</th>
+                    <th scope="col" className="text-right text-xs uppercase font-bold text-gray-400 py-2">Ratio/Caso</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topDelitos.map((d, i) => (
+                    <tr key={i} className="border-b border-gray-700/30 hover:bg-[#1e2235] transition-colors">
+                      <td className="text-left py-2 text-gray-200 font-medium truncate max-w-[140px]">{d['Subtipo de delito']}</td>
+                      <td className="text-right py-2 font-bold text-white">{d.Valor.toLocaleString('es-MX')}</td>
+                      <td className="text-right py-2 font-mono">
+                         <span className={`px-2 py-1 rounded text-xs ${d.ratio > 1.5 ? 'bg-red-900/30 text-red-400' : 'bg-gray-800 text-gray-400'}`}>
+                           {d.ratio.toFixed(2)}
+                         </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
          </div>
       </div>

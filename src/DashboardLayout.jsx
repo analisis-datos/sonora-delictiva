@@ -6,11 +6,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
-import { LayoutDashboard, MapPin, Users, Settings2, ShieldAlert, BadgeInfo, Download, Info, Loader2, BellRing, Share2, Check } from 'lucide-react';
+import { LayoutDashboard, MapPin, Users, Settings2, ShieldAlert, BadgeInfo, Download, Info, Loader2, BellRing, Share2, Check, TrendingUp, TrendingDown } from 'lucide-react';
 import Papa from 'papaparse';
 import { Toaster, toast } from 'react-hot-toast';
 import { useFilterState } from './hooks/useFilterState';
 import { useTasaPoblacion } from './hooks/useTasaPoblacion';
+import DataQualityIndicator from './components/DataQualityIndicator';
 
 const Plot = lazy(() => import('react-plotly.js').then(m => ({ default: m.default?.default || m.default || m })));
 const TabMunicipal = lazy(() => import('./components/TabMunicipal'));
@@ -23,10 +24,15 @@ const PrincipalDelitoModal = lazy(() => import('./components/Modals/PrincipalDel
 const MaxMunicipioModal = lazy(() => import('./components/Modals/MaxMunicipioModal'));
 const TotalVictimasModal = lazy(() => import('./components/Modals/TotalVictimasModal'));
 
-const FallbackLoader = () => (
-  <div className="flex justify-center items-center py-20 text-[var(--color-dash-muted)]">
-    <Loader2 size={32} className="animate-spin" />
-    <span className="ml-3 text-sm tracking-widest uppercase">Cargando Módulo...</span>
+const FallbackLoader = ({ title = "Cargando Módulo" }) => (
+  <div className="flex flex-col items-center justify-center py-20 gap-4">
+    <div className="relative w-12 h-12">
+      <Loader2 size={40} className="animate-spin text-blue-400" />
+    </div>
+    <div className="text-center">
+      <p className="text-sm text-gray-300 font-medium">{title}</p>
+      <p className="text-xs text-gray-500 mt-1">Por favor espera...</p>
+    </div>
   </div>
 );
 
@@ -69,6 +75,7 @@ function sumaTotal(arr) {
 const FilterSelect = ({ label, value, onChange, options, isMultiple }) => {
   const [isOpen, setIsOpen] = React.useState(false);
   const dropdownRef = React.useRef(null);
+  const idPrefix = label.toLowerCase().replace(/\s+/g, '-');
   
   React.useEffect(() => {
     if (!isMultiple) return;
@@ -101,9 +108,12 @@ const FilterSelect = ({ label, value, onChange, options, isMultiple }) => {
 
     return (
       <div className="flex-1 min-w-[200px]" ref={dropdownRef}>
-        <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">{label}</label>
+        <label id={`label-${idPrefix}`} className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5 font-medium">{label}</label>
         <div className="relative">
           <button
+            aria-haspopup="listbox"
+            aria-expanded={isOpen}
+            aria-labelledby={`label-${idPrefix}`}
             onClick={() => setIsOpen(!isOpen)}
             className="w-full text-left bg-[#1a1d27] border border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-200 focus:ring-2 focus:border-blue-500 outline-none transition-all flex justify-between items-center"
           >
@@ -112,24 +122,25 @@ const FilterSelect = ({ label, value, onChange, options, isMultiple }) => {
             </span>
             <div className="flex gap-2 items-center">
               {selectedValues.length > 0 && (
-                  <div onClick={handleClear} className="text-gray-400 hover:text-white flex items-center justify-center p-0.5 rounded-full hover:bg-gray-700 transition cursor-pointer">✕</div>
+                  <div onClick={handleClear} role="button" aria-label="Limpiar selección" tabIndex={0} className="text-gray-400 hover:text-white flex items-center justify-center p-0.5 rounded-full hover:bg-gray-700 transition cursor-pointer">✕</div>
               )}
               <span className="text-gray-500 text-[10px]">▼</span>
             </div>
           </button>
           
           {isOpen && (
-            <div className="absolute top-full left-0 w-full mt-2 bg-[#1a1d27] border border-gray-700 rounded-lg shadow-2xl z-50 max-h-64 overflow-y-auto custom-scrollbar">
+            <div role="listbox" aria-multiselectable="true" className="absolute top-full left-0 w-full mt-2 bg-[#1a1d27] border border-gray-700 rounded-lg shadow-2xl z-50 max-h-64 overflow-y-auto custom-scrollbar">
               <div className="p-1">
                  {options.map(o => {
                   const optStr = String(o);
                   return (
-                  <label key={optStr} className="flex items-center px-3 py-2 hover:bg-[#2e3250] rounded-md cursor-pointer text-sm text-gray-200 transition-colors">
+                  <label key={optStr} role="option" aria-selected={selectedValues.includes(optStr)} className="flex items-center px-3 py-2 hover:bg-[#2e3250] rounded-md cursor-pointer text-sm text-gray-200 transition-colors">
                     <input
                       type="checkbox"
                       checked={selectedValues.includes(optStr)}
                       onChange={() => handleToggle(optStr)}
                       className="mr-3 w-4 h-4 rounded border-gray-600 bg-gray-800 accent-blue-500 cursor-pointer"
+                      tabIndex={-1}
                     />
                     {optStr}
                   </label>
@@ -144,10 +155,12 @@ const FilterSelect = ({ label, value, onChange, options, isMultiple }) => {
 
   return (
     <div className="flex-1 min-w-[200px]">
-      <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">{label}</label>
+      <label htmlFor={`filter-${idPrefix}`} className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5 font-medium">{label}</label>
       <select
+        id={`filter-${idPrefix}`}
         value={value}
         onChange={e => onChange(e.target.value)}
+        aria-label={`Filtrar por ${label}`}
         className="w-full bg-[#1a1d27] border border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
       >
         <option value="">Todos</option>
@@ -242,12 +255,20 @@ const InsightCard = ({ porFechaData, onDrillDown }) => {
     <div className={`mb-6 p-4 rounded-xl flex items-center justify-between border ${isUp ? 'bg-red-900/20 border-red-700/50' : 'bg-green-900/20 border-green-700/50'}`}>
       <div className="flex items-center gap-3">
         <span className="text-2xl">{isUp ? '⚠️' : '🎉'}</span>
+        {isUp && <TrendingUp size={20} className="text-red-400" />}
+        {!isUp && <TrendingDown size={20} className="text-green-400" />}
         <div>
-          <h4 className={`text-sm font-bold ${isUp ? 'text-red-400' : 'text-green-400'} uppercase tracking-wider`}>Alerta de Tendencia</h4>
-          <p className="text-sm text-gray-300">Variación drástica del {(ratio*100).toFixed(1)}% mensual respecto al mes anterior.</p>
+          <h4 className={`text-sm font-bold ${isUp ? 'text-red-400' : 'text-green-400'} uppercase tracking-wider`}>
+            {isUp ? 'Alerta de Tendencia' : 'Tendencia Positiva'}
+          </h4>
+          <p className="text-sm text-gray-300">
+            Variación del {Math.abs(ratio*100).toFixed(1)}% {isUp ? 'aumentó' : 'disminuyó'} respecto al mes anterior.
+          </p>
         </div>
       </div>
-      <button onClick={onDrillDown} className="px-4 py-2 bg-[#1a1d27] border border-gray-600 rounded-lg text-sm text-white hover:bg-gray-700 transition">Ver Análisis</button>
+      <button onClick={onDrillDown} className="px-4 py-2 bg-[#1a1d27] border border-gray-600 rounded-lg text-sm text-white hover:bg-gray-700 transition">
+        Ver Análisis →
+      </button>
     </div>
   );
 };
@@ -508,6 +529,12 @@ export default function DashboardLayout({ data }) {
 
   return (
     <div className="min-h-screen pb-16">
+      <a 
+        href="#main-content" 
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:bg-blue-600 focus:text-white focus:px-4 focus:py-2 focus:rounded focus:font-bold"
+      >
+        Ir al contenido principal
+      </a>
       {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-[var(--color-dash-border)]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -547,10 +574,13 @@ export default function DashboardLayout({ data }) {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 mt-8">
+      <main id="main-content" className="max-w-7xl mx-auto px-6 mt-8">
         
         {/* InsightCard Anomalía */}
         <InsightCard porFechaData={porFechaData} onDrillDown={() => setActiveTab(3)} />
+
+        {/* Data Quality Indicator */}
+        <DataQualityIndicator meta={meta} estatal={estatal} municipal={municipal} />
 
         {/* Filtros */}
         <div className="glass rounded-2xl p-5 flex flex-wrap gap-5 items-end mb-8 animate-in slide-in-from-top-4 duration-500">
@@ -657,6 +687,13 @@ export default function DashboardLayout({ data }) {
 
       </main>
 
+      {/* Live region para notificaciones de cambios */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {filtAnno && `Filtro de año: ${filtAnno}`}
+        {filtDelito && `Filtro de delito: ${filtDelito}`}
+        {filtMunicipio && `Filtro de municipio: ${filtMunicipio}`}
+      </div>
+
       <Toaster position="bottom-right" />
       <GlosarioModal isOpen={glosarioOpen} onClose={() => setGlosarioOpen(false)} />
       
@@ -725,23 +762,32 @@ function TabTendenciasM({ dfM, munis }) {
               config={PLOTLY_CONFIG}
               style={{ width: '100%', height: '100%' }}
               useResizeHandler
+              aria-label="Gráfica de líneas: Evolución temporal de los 5 municipios con mayor incidencia delictiva en los últimos 12 meses" role="img"
             />
           </Suspense>
         </div>
       </Card>
       <Card title="Listado de Municipios (Ranking Completo)">
         <div className="w-full h-[400px] border border-gray-700/50 rounded-lg overflow-y-auto bg-[#1e2235]">
-           {rankingM.map((fila, index) => (
-              <div key={fila.Municipio} className={`flex justify-between items-center px-4 py-3 ${index % 2 === 0 ? 'bg-[#1a1d27]/50' : 'bg-[#1e2235]/50'} hover:bg-gray-700/30 transition-colors border-b border-gray-700/30`}>
-                <div className="flex items-center gap-3 w-1/2">
-                   <span className="text-xs font-bold text-gray-500 w-5">{index + 1}</span>
-                   <span className="text-sm font-medium text-gray-200 truncate">{fila.Municipio}</span>
-                </div>
-                <div className="text-sm font-bold text-white tracking-wider">
-                   {fila.Valor.toLocaleString('es-MX')} <span className="text-xs font-normal text-gray-500 ml-1">casos</span>
-                </div>
-              </div>
-           ))}
+           <table className="w-full">
+             <caption className="sr-only">Tabla: Top municipios ordenados por incidencia delictiva</caption>
+             <thead className="border-b border-gray-700">
+               <tr>
+                 <th scope="col" className="text-left text-xs uppercase font-bold text-gray-400 py-2 px-3 sticky top-0 bg-[#1e2235]">Ranking</th>
+                 <th scope="col" className="text-left text-xs uppercase font-bold text-gray-400 py-2 px-3 sticky top-0 bg-[#1e2235]">Municipio</th>
+                 <th scope="col" className="text-right text-xs uppercase font-bold text-gray-400 py-2 px-3 sticky top-0 bg-[#1e2235]">Casos</th>
+               </tr>
+             </thead>
+             <tbody>
+               {rankingM.map((fila, index) => (
+                 <tr key={fila.Municipio} className={`border-b border-gray-700/30 hover:bg-[#2e3250] transition-colors ${index % 2 === 0 ? 'bg-[#1a1d27]/50' : 'bg-[#1e2235]/50'}`}>
+                   <td className="text-left text-xs text-gray-500 font-mono py-2 px-3 w-12">{index + 1}</td>
+                   <td className="text-left text-sm text-gray-200 py-2 px-3 truncate max-w-[150px]">{fila.Municipio}</td>
+                   <td className="text-right text-sm font-bold text-white py-2 px-3 tracking-wider">{fila.Valor.toLocaleString('es-MX')}</td>
+                 </tr>
+               ))}
+             </tbody>
+           </table>
         </div>
       </Card>
     </div>

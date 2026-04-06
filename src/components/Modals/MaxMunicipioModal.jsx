@@ -88,26 +88,37 @@ export default function MaxMunicipioModal({ isOpen, onClose, df, municipioNombre
                     style={{width:'100%', height:'100%'}} 
                     config={{displayModeBar:false, responsive:true}}
                     role="img"
-                    aria-label="Gráfica comparativa de dinámica municipal y evolución histórica"
+                    aria-label="Gráfica dual: Comparativa de incidencia del municipio vs promedio estatal"
                   />
               </Suspense>
             </div>
          </div>
          <div className="glass p-5 rounded-xl flex flex-col h-[320px] border border-gray-700/50">
             <h3 className="text-sm text-gray-400 uppercase font-bold mb-4">Top 10 Delitos Locales</h3>
-            <div className="space-y-2.5 overflow-y-auto flex-1 pr-2 custom-scrollbar">
-              {topDelitos.map((d, i) => (
-                <div key={i} className="flex justify-between items-center bg-[#1e2235] p-2.5 rounded-lg border border-gray-700/50 hover:border-gray-600 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-gray-500 w-4">{i+1}</span>
-                    <span className="text-sm text-gray-200 font-medium truncate pr-2">{d['Subtipo de delito']}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm whitespace-nowrap">
-                    <span className="font-bold text-white">{d.Valor.toLocaleString('es-MX')}</span>
-                    <span className="text-gray-500 font-mono w-12 text-right bg-black/30 px-1 rounded">{d.pct.toFixed(1)}%</span>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-y-auto flex-1 pr-2 custom-scrollbar">
+              <table className="w-full text-sm">
+                <caption className="sr-only">Tabla: Top 10 delitos locales en {municipioNombre}</caption>
+                <thead className="border-b border-gray-700">
+                  <tr>
+                    <th scope="col" className="text-left text-xs uppercase font-bold text-gray-400 py-2">Ranking</th>
+                    <th scope="col" className="text-left text-xs uppercase font-bold text-gray-400 py-2">Delito</th>
+                    <th scope="col" className="text-right text-xs uppercase font-bold text-gray-400 py-2">Casos</th>
+                    <th scope="col" className="text-right text-xs uppercase font-bold text-gray-400 py-2">Porcentaje</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topDelitos.map((d, i) => (
+                    <tr key={i} className="border-b border-gray-700/30 hover:bg-[#1e2235] transition-colors">
+                      <td className="text-left py-2 text-xs font-bold text-gray-500">{i+1}</td>
+                      <td className="text-left py-2 text-gray-200 font-medium">{d['Subtipo de delito']}</td>
+                      <td className="text-right py-2 font-bold text-white">{d.Valor.toLocaleString('es-MX')}</td>
+                      <td className="text-right py-2 text-gray-500 font-mono">
+                         <span className="bg-black/30 px-2 py-1 rounded">{d.pct.toFixed(1)}%</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
          </div>
       </div>

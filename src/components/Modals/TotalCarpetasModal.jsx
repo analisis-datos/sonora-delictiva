@@ -64,23 +64,42 @@ export default function TotalCarpetasModal({ isOpen, onClose, df, tasaCambio, po
                     style={{width:'100%', height:'100%'}} 
                     config={{displayModeBar:false, responsive:true}}
                     role="img"
-                    aria-label="Gráfica temporal de evolución general de carpetas de investigación"
+                    aria-label="Gráfica temporal: Total de carpetas de investigación en los últimos 12 meses"
                   />
               </Suspense>
             </div>
          </div>
          <div className="glass p-5 rounded-xl border border-gray-700/50 h-[320px] flex flex-col">
             <h3 className="text-sm text-gray-400 uppercase font-bold mb-4">Top 5 Delitos Concurrentes</h3>
-            <div className="space-y-3 flex-1 overflow-y-auto">
-              {topDelitos.map((d, i) => (
-                <button key={i} type="button" className="w-full flex justify-between items-center group cursor-pointer hover:bg-blue-600/20 p-2.5 rounded-lg border border-transparent hover:border-blue-500/50 transition-colors text-left" onClick={() => { onFilterDelito(d['Subtipo de delito']); onClose(); }}>
-                  <span className="text-sm font-medium text-gray-200 truncate pr-4">{d['Subtipo de delito']}</span>
-                  <div className="flex items-center gap-4 text-sm whitespace-nowrap">
-                    <span className="font-bold text-white">{d.Valor.toLocaleString('es-MX')}</span>
-                    <span className="text-gray-500 font-mono w-12 text-right bg-black/20 px-1 rounded">{d.pct.toFixed(1)}%</span>
-                  </div>
-                </button>
-              ))}
+            <div className="flex-1 overflow-y-auto">
+              <table className="w-full text-sm">
+                <caption className="sr-only">Tabla: Top 5 delitos concurrentes en el período</caption>
+                <thead className="border-b border-gray-700">
+                  <tr>
+                    <th scope="col" className="text-left text-xs uppercase font-bold text-gray-400 py-2">Delito</th>
+                    <th scope="col" className="text-right text-xs uppercase font-bold text-gray-400 py-2">Casos</th>
+                    <th scope="col" className="text-right text-xs uppercase font-bold text-gray-400 py-2">Porcentaje</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topDelitos.map((d, i) => (
+                    <tr 
+                      key={i} 
+                      className="border-b border-gray-700/30 hover:bg-blue-600/20 transition-colors cursor-pointer group outline-none focus:bg-blue-600/30"
+                      tabIndex={0}
+                      role="button"
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onFilterDelito(d['Subtipo de delito']); onClose(); } }}
+                      onClick={() => { onFilterDelito(d['Subtipo de delito']); onClose(); }}
+                    >
+                      <td className="text-left text-gray-200 py-3">{d['Subtipo de delito']}</td>
+                      <td className="text-right font-bold text-white py-3">{d.Valor.toLocaleString('es-MX')}</td>
+                      <td className="text-right text-gray-500 font-mono py-3">
+                         <span className="bg-black/20 px-2 py-1 rounded">{d.pct.toFixed(1)}%</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
             <p className="text-xs text-blue-400 mt-4 text-center font-medium">⬆ Haz clic en un delito para profundizar</p>
          </div>
