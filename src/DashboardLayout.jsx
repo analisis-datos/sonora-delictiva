@@ -19,10 +19,10 @@ const TabTendencias = lazy(() => import('./components/TabTendencias'));
 const TabVictimas = lazy(() => import('./components/TabVictimas'));
 const TabAlertaTemprana = lazy(() => import('./components/TabAlertaTemprana'));
 
-const TotalCarpetasModal = lazy(() => import('./components/Modals/TotalCarpetasModal'));
-const PrincipalDelitoModal = lazy(() => import('./components/Modals/PrincipalDelitoModal'));
-const MaxMunicipioModal = lazy(() => import('./components/Modals/MaxMunicipioModal'));
-const TotalVictimasModal = lazy(() => import('./components/Modals/TotalVictimasModal'));
+const TotalCarpetasModal = lazy(() => import(/* webpackChunkName: "modal-carpetas" */ './components/Modals/TotalCarpetasModal'));
+const PrincipalDelitoModal = lazy(() => import(/* webpackChunkName: "modal-delito" */ './components/Modals/PrincipalDelitoModal'));
+const MaxMunicipioModal = lazy(() => import(/* webpackChunkName: "modal-municipio" */ './components/Modals/MaxMunicipioModal'));
+const TotalVictimasModal = lazy(() => import(/* webpackChunkName: "modal-victimas" */ './components/Modals/TotalVictimasModal'));
 
 const FallbackLoader = ({ title = "Cargando Módulo" }) => (
   <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -358,6 +358,13 @@ export default function DashboardLayout({ data }) {
   const [detailModal,  setDetailModal]  = useState({ type: null, isOpen: false });
   const [glosarioOpen, setGlosarioOpen] = useState(false);
 
+  // Diferir carga de Plotly 2 segundos (permite render inicial rápido)
+  const [plotlyReady, setPlotlyReady] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setPlotlyReady(true), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
   // FASE 3 Toast Notification On Filter Change
   useEffect(() => {
     if (filtAnno || filtDelito || filtMunicipio) {
@@ -506,7 +513,7 @@ export default function DashboardLayout({ data }) {
           setFiltMunicipio={setFiltMunicipio}
         />
         {/* Top 5 evolución + Top 15 municipios */}
-        <TabTendenciasM dfM={dfM} munis={munis} />
+        <TabTendenciasM dfM={dfM} munis={munis} plotlyReady={plotlyReady} />
       </div>
     );
     if (activeTab === 2) return (
@@ -681,9 +688,13 @@ export default function DashboardLayout({ data }) {
           ))}
         </div>
 
-        <Suspense fallback={<FallbackLoader />}>
-          {renderContent()}
-        </Suspense>
+        {plotlyReady ? (
+          <Suspense fallback={<FallbackLoader />}>
+            {renderContent()}
+          </Suspense>
+        ) : (
+          <FallbackLoader title="Cargando Visualizaciones..." />
+        )}
 
       </main>
 
@@ -708,7 +719,7 @@ export default function DashboardLayout({ data }) {
 }
 
 // ── Sub-componente inline: gráficas de municipios en tab Municipal ───────────
-function TabTendenciasM({ dfM, munis }) {
+function TabTendenciasM({ dfM, munis, plotlyReady }) {
   const LAYOUT_BASE = {
     paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
     font: { family: 'Inter, system-ui, sans-serif', color: '#8892b0', size: 11 },
@@ -755,16 +766,20 @@ function TabTendenciasM({ dfM, munis }) {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-[var(--color-dash-border)] border-dashed">
       <Card title="Evolución Top 5">
         <div className="w-full h-[400px]">
-          <Suspense fallback={<FallbackLoader />}>
-            <Plot
-              data={traces5}
-              layout={{ ...LAYOUT_BASE, autosize: true, legend: { orientation: 'h', y: -0.2 }, margin: { t:10, r:10, b:80, l:50 }, xaxis: { ...LAYOUT_BASE.xaxis, type: 'category' } }}
-              config={PLOTLY_CONFIG}
-              style={{ width: '100%', height: '100%' }}
-              useResizeHandler
-              aria-label="Gráfica de líneas: Evolución temporal de los 5 municipios con mayor incidencia delictiva en los últimos 12 meses" role="img"
-            />
-          </Suspense>
+          {plotlyReady ? (
+            <Suspense fallback={<FallbackLoader />}>
+              <Plot
+                data={traces5}
+                layout={{ ...LAYOUT_BASE, autosize: true, legend: { orientation: 'h', y: -0.2 }, margin: { t:10, r:10, b:80, l:50 }, xaxis: { ...LAYOUT_BASE.xaxis, type: 'category' } }}
+                config={PLOTLY_CONFIG}
+                style={{ width: '100%', height: '100%' }}
+                useResizeHandler
+                aria-label="Gráfica de líneas: Evolución temporal de los 5 municipios con mayor incidencia delictiva en los últimos 12 meses" role="img"
+              />
+            </Suspense>
+          ) : (
+            <FallbackLoader title="Cargando Visualizaciones..." />
+          )}
         </div>
       </Card>
       <Card title="Listado de Municipios (Ranking Completo)">
