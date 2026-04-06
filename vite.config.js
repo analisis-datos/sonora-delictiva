@@ -13,7 +13,7 @@ export default defineConfig({
       algorithm: 'gzip'
     })
   ],
-  base: './',
+  base: '/sonora-delictiva/',
   build: {
     chunkSizeWarningLimit: 4000,
     rollupOptions: {

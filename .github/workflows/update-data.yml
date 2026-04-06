@@ -1,0 +1,64 @@
+name: Actualizar datos SESNSP
+
+on:
+  schedule:
+    - cron: '0 9 25 * *'
+  push:
+    paths:
+      - 'Data/RNID-*.xlsx'
+      - 'Data/RNID-*.csv'
+      - 'Data/IDEFC_*.xlsx'
+      - 'Data/IDMFC_*.xlsx'
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: 'Forzar regeneración de todos los CSVs'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Preparar datos
+        run: python scripts/00_preparar_datos.py
+
+      - name: Commit y push de datos actualizados
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "data: actualizar CSVs SESNSP $(date +'%Y-%m')"
+          file_pattern: "public/data/*.csv"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "github-actions[bot]@users.noreply.github.com"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install and Build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist

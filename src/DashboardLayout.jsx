@@ -66,19 +66,96 @@ function sumaTotal(arr) {
 }
 
 // ── Componentes UI locales ───────────────────────────────────────────────────
-const FilterSelect = ({ label, value, onChange, options }) => (
-  <div className="flex-1 min-w-[200px]">
-    <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">{label}</label>
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      className="w-full bg-[#1a1d27] border border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-    >
-      <option value="">Todos</option>
-      {options.map(o => <option key={o} value={o}>{o}</option>)}
-    </select>
-  </div>
-);
+const FilterSelect = ({ label, value, onChange, options, isMultiple }) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const dropdownRef = React.useRef(null);
+  
+  React.useEffect(() => {
+    if (!isMultiple) return;
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isMultiple]);
+
+  if (isMultiple) {
+    const selectedValues = value ? value.split(',') : [];
+
+    const handleToggle = (opt) => {
+      let newSelected;
+      if (selectedValues.includes(opt)) {
+        newSelected = selectedValues.filter(o => o !== opt);
+      } else {
+        newSelected = [...selectedValues, opt];
+      }
+      onChange(newSelected.join(','));
+    };
+
+    const handleClear = (e) => {
+      e.stopPropagation();
+      onChange('');
+    };
+
+    return (
+      <div className="flex-1 min-w-[200px]" ref={dropdownRef}>
+        <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">{label}</label>
+        <div className="relative">
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="w-full text-left bg-[#1a1d27] border border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-200 focus:ring-2 focus:border-blue-500 outline-none transition-all flex justify-between items-center"
+          >
+            <span className="truncate pr-2 select-none text-gray-200">
+              {selectedValues.length === 0 ? "Todos" : selectedValues.join(', ')}
+            </span>
+            <div className="flex gap-2 items-center">
+              {selectedValues.length > 0 && (
+                  <div onClick={handleClear} className="text-gray-400 hover:text-white flex items-center justify-center p-0.5 rounded-full hover:bg-gray-700 transition cursor-pointer">✕</div>
+              )}
+              <span className="text-gray-500 text-[10px]">▼</span>
+            </div>
+          </button>
+          
+          {isOpen && (
+            <div className="absolute top-full left-0 w-full mt-2 bg-[#1a1d27] border border-gray-700 rounded-lg shadow-2xl z-50 max-h-64 overflow-y-auto custom-scrollbar">
+              <div className="p-1">
+                 {options.map(o => {
+                  const optStr = String(o);
+                  return (
+                  <label key={optStr} className="flex items-center px-3 py-2 hover:bg-[#2e3250] rounded-md cursor-pointer text-sm text-gray-200 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={selectedValues.includes(optStr)}
+                      onChange={() => handleToggle(optStr)}
+                      className="mr-3 w-4 h-4 rounded border-gray-600 bg-gray-800 accent-blue-500 cursor-pointer"
+                    />
+                    {optStr}
+                  </label>
+                )})}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 min-w-[200px]">
+      <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">{label}</label>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-full bg-[#1a1d27] border border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+      >
+        <option value="">Todos</option>
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+};
 
 const Sparkline = ({ data, color = "#4f72ff" }) => {
   if (!data || data.length < 2) return null;
@@ -252,7 +329,7 @@ export default function DashboardLayout({ data }) {
   const { meta = {}, estatal, municipal, victimas } = data;
 
   // Filtros sincronizados con la URL
-  const [filtAnno,     setFiltAnno]     = useFilterState('año', '');
+  const [filtAnno,     setFiltAnno]     = useFilterState('año', '2026');
   const [filtDelito,   setFiltDelito]   = useFilterState('delito', '');
   const [filtMunicipio, setFiltMunicipio] = useFilterState('municipio', '');
   const [activeTab,    setActiveTab]    = useState(0);
@@ -297,7 +374,10 @@ export default function DashboardLayout({ data }) {
   // Datasets filtrados
   const df = useMemo(() => {
     let d = filtMunicipio ? municipal : estatal;
-    if (filtAnno)      d = d.filter(r => String(r['Año']) === filtAnno);
+    if (filtAnno) {
+      const annos = filtAnno.split(',');
+      d = d.filter(r => annos.includes(String(r['Año'])));
+    }
     if (filtDelito)    d = d.filter(r => r['Subtipo de delito'] === filtDelito);
     if (filtMunicipio) d = d.filter(r => r['Municipio'] === filtMunicipio);
     return d;
@@ -305,7 +385,10 @@ export default function DashboardLayout({ data }) {
 
   const dfM = useMemo(() => {
     let d = municipal;
-    if (filtAnno)      d = d.filter(r => String(r['Año']) === filtAnno);
+    if (filtAnno) {
+      const annos = filtAnno.split(',');
+      d = d.filter(r => annos.includes(String(r['Año'])));
+    }
     if (filtDelito)    d = d.filter(r => r['Subtipo de delito'] === filtDelito);
     if (filtMunicipio) d = d.filter(r => r['Municipio'] === filtMunicipio);
     return d;
@@ -313,11 +396,23 @@ export default function DashboardLayout({ data }) {
 
   const dfV = useMemo(() => {
     let d = victimas;
-    if (filtAnno)      d = d.filter(r => String(r['Año']) === filtAnno);
+    if (filtAnno) {
+      const annos = filtAnno.split(',');
+      d = d.filter(r => annos.includes(String(r['Año'])));
+    }
     if (filtDelito)    d = d.filter(r => r['Subtipo de delito'] === filtDelito);
     if (filtMunicipio) d = d.filter(r => r['Municipio'] === filtMunicipio);
     return d;
   }, [victimas, filtAnno, filtDelito, filtMunicipio]);
+
+  const dfNoAnno = useMemo(() => {
+    // Para la proyección estadística, NUNCA filtramos por año
+    // porque necesitamos la historia completa para calcular la estacionalidad
+    let d = filtMunicipio ? municipal : estatal;
+    if (filtDelito)    d = d.filter(r => r['Subtipo de delito'] === filtDelito);
+    if (filtMunicipio) d = d.filter(r => r['Municipio'] === filtMunicipio);
+    return d;
+  }, [estatal, municipal, filtDelito, filtMunicipio]);
 
   // KPIs
   const totalCarpetas  = sumaTotal(df);
@@ -404,7 +499,10 @@ export default function DashboardLayout({ data }) {
       />
     );
     if (activeTab === 3) return (
-      <TabAlertaTemprana df={df} />
+      <TabAlertaTemprana 
+        dataEstatal={dfNoAnno.filter(d => Number(d.Fecha?.substring(0, 4) || d['Año']) >= 2026)} 
+        dataHistorica={dfNoAnno.filter(d => Number(d.Fecha?.substring(0, 4) || d['Año']) <= 2025)} 
+      />
     );
   };
 
@@ -459,7 +557,7 @@ export default function DashboardLayout({ data }) {
           <div className="flex items-center gap-2 w-full sm:w-auto font-medium text-gray-300">
             <Settings2 size={18} /> Filtros:
           </div>
-          <FilterSelect label="Año"       value={filtAnno}      onChange={setFiltAnno}      options={annos} />
+          <FilterSelect label="Año"       value={filtAnno || ''}      onChange={setFiltAnno}      options={annos} isMultiple={true} />
           <FilterSelect label="Delito"    value={filtDelito}    onChange={setFiltDelito}    options={delitos} />
           <FilterSelect label="Municipio" value={filtMunicipio} onChange={setFiltMunicipio} options={munis} />
 

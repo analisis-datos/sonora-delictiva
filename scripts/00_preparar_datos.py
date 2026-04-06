@@ -48,7 +48,7 @@ PATRONES = {
         "RNID-Delitos_Estatal-*.xlsx",
         "RNID-Delitos_Estatal-*.csv",
         "IDEFC_NM_*.xlsx",
-        "IDEFC_NM_*.csv",
+        "IDEFC_NM_*.csv"
     ],
     "municipal": [
         "RNID-Delitos_Municipal-*.xlsx",
@@ -63,42 +63,44 @@ PATRONES = {
         "RNID-V*ctimas_Estatal-*.csv",
         "IDVFC_NM_*.xlsx",
         "IDVFC_NM_*.csv",
+        "Estatal-V*ctimas-*.csv"
     ],
 }
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def leer_archivo_sesnsp(tipo: str) -> pd.DataFrame:
+def leer_archivos_sesnsp(tipo: str) -> list[pd.DataFrame]:
     """
-    Busca el archivo del SESNSP para el tipo indicado ('estatal', 'municipal', 'victimas').
-    Prueba cada patrón en orden y carga el primero que encuentre.
-    Soporta .xlsx y .csv automáticamente.
+    Busca los archivos del SESNSP para el tipo indicado ('estatal', 'municipal', 'victimas').
+    Carga todos los archivos encontrados y los retorna como lista para su procesamiento.
     """
+    dfs = []
+    archivos_procesados = set()
     for patron in PATRONES[tipo]:
         archivos = glob.glob(os.path.join(DATA_DIR, patron))
-        if archivos:
-            archivo = sorted(archivos)[-1]      # El más reciente si hay varios
+        for archivo in archivos:
+            if archivo in archivos_procesados: continue
+            archivos_procesados.add(archivo)
             ext = os.path.splitext(archivo)[1].lower()
             print(f"  Leyendo ({ext}): {os.path.basename(archivo)}")
 
             if ext in (".xlsx", ".xls"):
                 df = pd.read_excel(archivo, engine="openpyxl")
             else:
-                # Intenta UTF-8 primero; si falla, latin-1
                 try:
                     df = pd.read_csv(archivo, encoding="utf-8", low_memory=False)
                 except UnicodeDecodeError:
                     df = pd.read_csv(archivo, encoding="latin-1", low_memory=False)
 
             df.columns = df.columns.str.strip()
-            return df
+            dfs.append(df)
 
-    raise FileNotFoundError(
-        f"No se encontró ningún archivo '{tipo}' en {DATA_DIR}.\n"
-        f"Patrones buscados: {PATRONES[tipo]}\n"
-        "Descarga los datos en: https://www.gob.mx/sesnsp/acciones-y-programas/"
-        "datos-abiertos-de-incidencia-delictiva"
-    )
+    if not dfs:
+        raise FileNotFoundError(
+            f"No se encontró ningún archivo '{tipo}' en {DATA_DIR}.\n"
+            f"Patrones buscados: {PATRONES[tipo]}\n"
+        )
+    return dfs
 
 
 # Alias para mantener compatibilidad con el resto del código
@@ -163,68 +165,81 @@ def detectar_columna_entidad(df: pd.DataFrame) -> str:
 
 def procesar_estatal() -> None:
     print("\n[1/3] Procesando dataset ESTATAL...")
-    df = leer_archivo_sesnsp("estatal")
-
-    col_entidad = detectar_columna_entidad(df)
-    df = df[df[col_entidad].astype(str).str.strip() == ENTIDAD].copy()
-    print(f"  Registros Sonora (ancho): {len(df):,}")
-    if df.empty:
-        print(f"  ⚠ Valores únicos en '{col_entidad}': {leer_archivo_sesnsp('estatal')[col_entidad].unique()[:10]}")
+    dfs_crudos = leer_archivos_sesnsp("estatal")
+    dfs_long = []
+    
+    for df in dfs_crudos:
+        col_entidad = detectar_columna_entidad(df)
+        df_sub = df[df[col_entidad].astype(str).str.strip() == ENTIDAD].copy()
+        if df_sub.empty:
+            continue
+            
+        cols_id = ["Año", "Clave_Ent", "Entidad",
+                   "Bien jurídico afectado", "Tipo de delito",
+                   "Subtipo de delito", "Modalidad"]
+        cols_id = [c for c in cols_id if c in df_sub.columns]
+        dfs_long.append(wide_a_long(df_sub, cols_id))
+        
+    if not dfs_long:
+        print("  ⚠ No se encontraron registros para Sonora en los datasets estatales.")
         return
 
-    cols_id = ["Año", "Clave_Ent", "Entidad",
-               "Bien jurídico afectado", "Tipo de delito",
-               "Subtipo de delito", "Modalidad"]
-    cols_id = [c for c in cols_id if c in df.columns]
-
-    df_long = wide_a_long(df, cols_id)
+    df_long = pd.concat(dfs_long, ignore_index=True)
     salida = os.path.join(OUTPUT_DIR, "sonora_estatal.csv")
     df_long.to_csv(salida, index=False, encoding="utf-8")
-    print(f"  ✓ Guardado: {salida}  ({len(df_long):,} registros)")
+    print(f"  ✓ Guardado: {salida}  ({len(df_long):,} registros combinados)")
 
 
 def procesar_municipal() -> None:
     print("\n[2/3] Procesando dataset MUNICIPAL...")
-    df = leer_archivo_sesnsp("municipal")
+    dfs_crudos = leer_archivos_sesnsp("municipal")
+    dfs_long = []
+    
+    for df in dfs_crudos:
+        col_entidad = detectar_columna_entidad(df)
+        df_sub = df[df[col_entidad].astype(str).str.strip() == ENTIDAD].copy()
+        if df_sub.empty:
+            continue
 
-    col_entidad = detectar_columna_entidad(df)
-    df = df[df[col_entidad].astype(str).str.strip() == ENTIDAD].copy()
-    print(f"  Registros Sonora (ancho): {len(df):,}")
-    if df.empty:
-        return
+        cols_id = ["Año", "Clave_Ent", "Entidad",
+                   "Cve. Municipio", "Municipio",
+                   "Bien jurídico afectado", "Tipo de delito",
+                   "Subtipo de delito", "Modalidad"]
+        cols_id = [c for c in cols_id if c in df_sub.columns]
+        dfs_long.append(wide_a_long(df_sub, cols_id))
 
-    cols_id = ["Año", "Clave_Ent", "Entidad",
-               "Cve. Municipio", "Municipio",
-               "Bien jurídico afectado", "Tipo de delito",
-               "Subtipo de delito", "Modalidad"]
-    cols_id = [c for c in cols_id if c in df.columns]
+    if not dfs_long: return
 
-    df_long = wide_a_long(df, cols_id)
+    df_long = pd.concat(dfs_long, ignore_index=True)
     salida = os.path.join(OUTPUT_DIR, "sonora_municipal.csv")
     df_long.to_csv(salida, index=False, encoding="utf-8")
-    print(f"  ✓ Guardado: {salida}  ({len(df_long):,} registros)")
+    print(f"  ✓ Guardado: {salida}  ({len(df_long):,} registros combinados)")
 
 
 def procesar_victimas() -> None:
     print("\n[3/3] Procesando dataset VÍCTIMAS...")
-    df = leer_archivo_sesnsp("victimas")
+    dfs_crudos = leer_archivos_sesnsp("victimas")
+    dfs_long = []
+    
+    for df in dfs_crudos:
+        col_entidad = detectar_columna_entidad(df)
+        df_sub = df[df[col_entidad].astype(str).str.strip() == ENTIDAD].copy()
+        if df_sub.empty:
+            continue
 
-    col_entidad = detectar_columna_entidad(df)
-    df = df[df[col_entidad].astype(str).str.strip() == ENTIDAD].copy()
-    print(f"  Registros Sonora (ancho): {len(df):,}")
-    if df.empty:
-        return
+        cols_id = ["Año", "Clave_Ent", "Entidad", "Cve. Municipio", "Municipio",
+                   "Bien jurídico afectado", "Tipo de delito",
+                   "Subtipo de delito", "Modalidad",
+                   "Sexo", "Rango de edad"]
+        cols_id = [c for c in cols_id if c in df_sub.columns]
+        dfs_long.append(wide_a_long(df_sub, cols_id))
 
-    cols_id = ["Año", "Clave_Ent", "Entidad", "Cve. Municipio", "Municipio",
-               "Bien jurídico afectado", "Tipo de delito",
-               "Subtipo de delito", "Modalidad",
-               "Sexo", "Rango de edad"]
-    cols_id = [c for c in cols_id if c in df.columns]
+    if not dfs_long: return
 
-    df_long = wide_a_long(df, cols_id)
+    df_long = pd.concat(dfs_long, ignore_index=True)
     salida = os.path.join(OUTPUT_DIR, "sonora_victimas.csv")
     df_long.to_csv(salida, index=False, encoding="utf-8")
-    print(f"  ✓ Guardado: {salida}  ({len(df_long):,} registros)")
+    print(f"  ✓ Guardado: {salida}  ({len(df_long):,} registros combinados)")
 
 
 def generar_meta() -> None:
@@ -269,21 +284,6 @@ def generar_meta() -> None:
     print(f"  Municipios únicos: {meta['municipios']}")
 
 
-if __name__ == "__main__":
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    print("=" * 60)
-    print("  Preparación de datos – Incidencia Delictiva Sonora")
-    print("=" * 60)
-
-    procesar_estatal()
-    procesar_municipal()
-    procesar_victimas()
-    generar_agregados()
-    generar_meta()
-
-    print("\n✅ ¡Datos listos! Archivos en la carpeta /public/data/")
-    print("   Ejecuta: npm run dev")
-
 
 def generar_agregados() -> None:
     """
@@ -317,3 +317,17 @@ def generar_agregados() -> None:
         size_kb = os.path.getsize(salida_vic) / 1024
         print(f"  ✓ sonora_vic_anual.csv:  {size_kb:.0f} KB")
 
+if __name__ == "__main__":
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    print("=" * 60)
+    print("  Preparación de datos – Incidencia Delictiva Sonora")
+    print("=" * 60)
+
+    procesar_estatal()
+    procesar_municipal()
+    procesar_victimas()
+    generar_agregados()
+    generar_meta()
+
+    print("\n✅ ¡Datos listos! Archivos en la carpeta /public/data/")
+    print("   Ejecuta: npm run dev")
