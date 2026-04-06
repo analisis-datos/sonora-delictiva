@@ -48,7 +48,8 @@ PATRONES = {
         "RNID-Delitos_Estatal-*.xlsx",
         "RNID-Delitos_Estatal-*.csv",
         "IDEFC_NM_*.xlsx",
-        "IDEFC_NM_*.csv"
+        "IDEFC_NM_*.csv",
+        "Estatal-V*ctimas-*.csv"
     ],
     "municipal": [
         "RNID-Delitos_Municipal-*.xlsx",
@@ -69,10 +70,10 @@ PATRONES = {
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def leer_archivos_sesnsp(tipo: str) -> list[pd.DataFrame]:
+def leer_archivos_sesnsp(tipo: str) -> list[tuple[str, pd.DataFrame]]:
     """
     Busca los archivos del SESNSP para el tipo indicado ('estatal', 'municipal', 'victimas').
-    Carga todos los archivos encontrados y los retorna como lista para su procesamiento.
+    Carga todos los archivos encontrados y los retorna como lista de tuplas (nombre_archivo, df).
     """
     dfs = []
     archivos_procesados = set()
@@ -93,7 +94,7 @@ def leer_archivos_sesnsp(tipo: str) -> list[pd.DataFrame]:
                     df = pd.read_csv(archivo, encoding="latin-1", low_memory=False)
 
             df.columns = df.columns.str.strip()
-            dfs.append(df)
+            dfs.append((os.path.basename(archivo), df))
 
     if not dfs:
         raise FileNotFoundError(
@@ -168,11 +169,15 @@ def procesar_estatal() -> None:
     dfs_crudos = leer_archivos_sesnsp("estatal")
     dfs_long = []
     
-    for df in dfs_crudos:
+    for filename, df in dfs_crudos:
         col_entidad = detectar_columna_entidad(df)
         df_sub = df[df[col_entidad].astype(str).str.strip() == ENTIDAD].copy()
         if df_sub.empty:
             continue
+            
+        # Drop 2026 data from old methodology to prevent double-counting 2026 data
+        if "RNID" not in filename.upper() and 'Año' in df_sub.columns:
+            df_sub = df_sub[df_sub['Año'] < 2026]
             
         cols_id = ["Año", "Clave_Ent", "Entidad",
                    "Bien jurídico afectado", "Tipo de delito",
@@ -195,11 +200,14 @@ def procesar_municipal() -> None:
     dfs_crudos = leer_archivos_sesnsp("municipal")
     dfs_long = []
     
-    for df in dfs_crudos:
+    for filename, df in dfs_crudos:
         col_entidad = detectar_columna_entidad(df)
         df_sub = df[df[col_entidad].astype(str).str.strip() == ENTIDAD].copy()
         if df_sub.empty:
             continue
+
+        if "RNID" not in filename.upper() and 'Año' in df_sub.columns:
+            df_sub = df_sub[df_sub['Año'] < 2026]
 
         cols_id = ["Año", "Clave_Ent", "Entidad",
                    "Cve. Municipio", "Municipio",
@@ -221,11 +229,14 @@ def procesar_victimas() -> None:
     dfs_crudos = leer_archivos_sesnsp("victimas")
     dfs_long = []
     
-    for df in dfs_crudos:
+    for filename, df in dfs_crudos:
         col_entidad = detectar_columna_entidad(df)
         df_sub = df[df[col_entidad].astype(str).str.strip() == ENTIDAD].copy()
         if df_sub.empty:
             continue
+
+        if "RNID" not in filename.upper() and 'Año' in df_sub.columns:
+            df_sub = df_sub[df_sub['Año'] < 2026]
 
         cols_id = ["Año", "Clave_Ent", "Entidad", "Cve. Municipio", "Municipio",
                    "Bien jurídico afectado", "Tipo de delito",
