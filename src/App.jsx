@@ -29,15 +29,17 @@ const App = () => {
 
         const fetchJSON = (url) => fetch(url).then(r => r.ok ? r.json() : null).catch(() => null);
 
-        const [meta, estatalData, municipalData, victimasData] = await Promise.all([
-          fetchJSON('data/meta.json'),
-          fetchCSV('data/sonora_estatal.csv'),
-          fetchCSV('data/sonora_municipal.csv'),
-          fetchCSV('data/sonora_victimas.csv'),
+        const metaData = await fetchJSON(`data/meta.json?nocache=${Math.random()}`);
+        const version = metaData?.generado_en ? new Date(metaData.generado_en).getTime() : Date.now();
+
+        const [estatalData, municipalData, victimasData] = await Promise.all([
+          fetchCSV(`data/sonora_estatal.csv?v=${version}`),
+          fetchCSV(`data/sonora_municipal.csv?v=${version}`),
+          fetchCSV(`data/sonora_victimas.csv?v=${version}`),
         ]);
 
         setData({
-          meta: meta ?? {},
+          meta: metaData ?? {},
           estatal: estatalData,
           municipal: municipalData,
           victimas: victimasData
