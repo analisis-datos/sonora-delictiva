@@ -60,3 +60,7 @@ Datos recopilados, curados y actualizados provenientes de la institución abiert
 
 ---
 *Este proyecto de ingeniería de datos y desarrollo front-end es para fines demostrativos y de concientización pública.*
+
+Link al Tablero
+
+https://analisis-datos.github.io/sonora-delictiva/
